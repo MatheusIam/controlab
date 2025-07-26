@@ -1,24 +1,43 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:controlab/features/auth/domain/i_auth_repository.dart';
+import 'package:controlab/app/core/domain/either.dart';
+import 'package:controlab/features/auth/domain/auth_failure.dart';
+import 'package:controlab/features/auth/domain/user.dart';
 
 // Provider para o repositório. Facilita a troca de implementações.
 final authRepositoryProvider = Provider<IAuthRepository>((ref) {
   return MockAuthRepository();
-  // Para usar um backend real:
-  // return ApiAuthRepository();
 });
 
 class MockAuthRepository implements IAuthRepository {
+  User? _user;
+
   @override
-  Future<void> login(String email, String password) async {
-    // Simula a latência da rede.
-    await Future.delayed(const Duration(seconds: 2));
+  Future<Either<AuthFailure, User>> login(String email, String password) async {
+    await Future.delayed(const Duration(seconds: 1));
     if (email == 'demo@controlab.com' && password == '123456') {
-      // Simula um login bem-sucedido.
-      return;
+      _user = User(id: 'user-123', name: 'Dr. Ricardo', email: email);
+      // Retorna 'Right' para indicar sucesso.
+      return Right(_user!);
     } else {
-      // Simula um erro de autenticação.
-      throw Exception('Credenciais inválidas.');
+      // Retorna 'Left' para indicar uma falha.
+      return const Left(InvalidCredentials());
+    }
+  }
+
+  @override
+  Future<void> logout() async {
+    _user = null;
+    await Future.delayed(const Duration(milliseconds: 200));
+  }
+
+  @override
+  Future<Either<AuthFailure, User>> checkAuthStatus() async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    if (_user != null) {
+      return Right(_user!);
+    } else {
+      return const Left(AuthFailure("Nenhuma sessão ativa."));
     }
   }
 }

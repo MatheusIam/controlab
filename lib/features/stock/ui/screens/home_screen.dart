@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:controlab/features/stock/application/stock_providers.dart';
-import 'package:controlab/features/stock/domain/produto.dart';
 import 'package:controlab/features/stock/ui/widgets/produto_list_item.dart';
+import 'package:controlab/features/auth/application/auth_notifier.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -11,14 +11,20 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stockListAsync = ref.watch(stockListProvider);
+    // CORREÇÃO: Esta linha agora funciona, pois o provider gerencia o estado de User?
+    final user = ref.watch(authNotifierProvider).value;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Estoque da Clínica'),
+        title: Text(user?.name ?? 'Estoque da Clínica'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
+            icon: const Icon(Icons.logout),
+            tooltip: 'Sair',
+            onPressed: () {
+              // CORREÇÃO: O método logout() agora está disponível no notifier.
+              ref.read(authNotifierProvider.notifier).logout();
+            },
           ),
         ],
       ),
@@ -30,7 +36,7 @@ class HomeScreen extends ConsumerWidget {
               decoration: InputDecoration(
                 hintText: 'Buscar produto...',
                 prefixIcon: const Icon(Icons.search),
-                fillColor: Theme.of(context).colorScheme.surface,
+                fillColor: Theme.of(context).colorScheme.surfaceContainer,
               ),
             ),
           ),
@@ -40,7 +46,9 @@ class HomeScreen extends ConsumerWidget {
               error: (err, stack) => Center(child: Text('Erro: $err')),
               data: (produtos) {
                 if (produtos.isEmpty) {
-                  return const Center(child: Text('Nenhum produto no estoque.'));
+                  return const Center(
+                    child: Text('Nenhum produto no estoque.'),
+                  );
                 }
                 return RefreshIndicator(
                   onRefresh: () => ref.refresh(stockListProvider.future),
@@ -53,7 +61,8 @@ class HomeScreen extends ConsumerWidget {
                         padding: const EdgeInsets.only(bottom: 12.0),
                         child: ProdutoListItem(
                           produto: produto,
-                          onTap: () => context.go('/home/product/${produto.id}'),
+                          onTap: () =>
+                              context.go('/home/product/${produto.id}'),
                         ),
                       );
                     },

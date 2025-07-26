@@ -1,71 +1,113 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:controlab/features/auth/application/auth_notifier.dart';
+import 'package:controlab/features/auth/ui/screens/login_screen.dart';
+import 'package:controlab/features/stock/ui/screens/home_screen.dart';
+import 'package:controlab/features/stock/ui/screens/product_details_screen.dart';
+import 'package:controlab/app/core/ui/widgets/scaffold_with_nav_bar.dart';
 
-class ScaffoldWithNavBar extends StatefulWidget {
-  final Widget child;
-  const ScaffoldWithNavBar({super.key, required this.child});
+enum AppRoute { login, home, productDetails, profile, settings }
+
+// Classe auxiliar para notificar o GoRouter sobre mudanças no stream de autenticação.
+class GoRouterRefreshStream extends ChangeNotifier {
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    notifyListeners();
+    _subscription = stream.asBroadcastStream().listen((_) => notifyListeners());
+  }
+
+  late final StreamSubscription<dynamic> _subscription;
 
   @override
-  State<ScaffoldWithNavBar> createState() => _ScaffoldWithNavBarState();
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
 }
 
-class _ScaffoldWithNavBarState extends State<ScaffoldWithNavBar> {
-  int _currentIndex = 0;
+final routerProvider = Provider<GoRouter>((ref) {
+  final authNotifier = ref.watch(authNotifierProvider.notifier);
 
-  void _onTap(int index) {
-    if (index == _currentIndex) return;
-    setState(() {
-      _currentIndex = index;
-    });
-    switch (index) {
-      case 0:
-        context.go('/home');
-        break;
-      case 1:
-        // Rota de placeholder
-        context.go('/profile');
-        break;
-      case 2:
-        // Rota de placeholder
-        context.go('/settings');
-        break;
-    }
-  }
+  return GoRouter(
+    initialLocation: '/login',
+    // O refreshListenable garante que o GoRouter reavalie as rotas quando o estado de autenticação mudar.
+    // CORREÇÃO: O stream é acessado a partir do provider, não do notifier.
+    refreshListenable: GoRouterRefreshStream(
+      ref.watch(authNotifierProvider.stream),
+    ),
+    redirect: (BuildContext context, GoRouterState state) {
+      final bool loggedIn = authNotifier.isAuthenticated;
+      final bool isLoggingIn = state.uri.toString() == '/login';
+
+      if (!loggedIn && !isLoggingIn) {
+        return '/login';
+      }
+
+      if (loggedIn && isLoggingIn) {
+        return '/home';
+      }
+
+      return null;
+    },
+    routes: [
+      GoRoute(
+        path: '/login',
+        name: AppRoute.login.name,
+        builder: (context, state) => const LoginScreen(),
+      ),
+      ShellRoute(
+        builder: (context, state, child) {
+          return ScaffoldWithNavBar(child: child);
+        },
+        routes: [
+          GoRoute(
+            path: '/home',
+            name: AppRoute.home.name,
+            builder: (context, state) => const HomeScreen(),
+            routes: [
+              GoRoute(
+                path: 'product/:id',
+                name: AppRoute.productDetails.name,
+                builder: (context, state) {
+                  final productId = state.pathParameters['id']!;
+                  return ProductDetailsScreen(productId: productId);
+                },
+              ),
+            ],
+          ),
+          GoRoute(
+            path: '/profile',
+            name: AppRoute.profile.name,
+            builder: (context, state) =>
+                const PlaceholderScreen(title: 'Perfil'),
+          ),
+          GoRoute(
+            path: '/settings',
+            name: AppRoute.settings.name,
+            builder: (context, state) =>
+                const PlaceholderScreen(title: 'Configurações'),
+          ),
+        ],
+      ),
+    ],
+  );
+});
+
+// Tela genérica para funcionalidades ainda não implementadas.
+class PlaceholderScreen extends StatelessWidget {
+  final String title;
+  const PlaceholderScreen({super.key, required this.title});
 
   @override
   Widget build(BuildContext context) {
-    // Atualiza o _currentIndex quando a rota muda (ex: botão 'back' do navegador/OS)
-    final location = GoRouter.of(context).location;
-    if (location.startsWith('/home')) {
-      _currentIndex = 0;
-    } else if (location.startsWith('/profile')) {
-      _currentIndex = 1;
-    } else if (location.startsWith('/settings')) {
-      _currentIndex = 2;
-    }
-
     return Scaffold(
-      body: widget.child,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: _onTap,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.inventory_2_outlined),
-            activeIcon: Icon(Icons.inventory_2),
-            label: 'Estoque',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Perfil',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
-            label: 'Ajustes',
-          ),
-        ],
+      appBar: AppBar(title: Text(title)),
+      body: Center(
+        child: Text(
+          'Tela de $title',
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
       ),
     );
   }

@@ -26,12 +26,11 @@ class MyApp extends ConsumerWidget {
         brightness: Brightness.light,
         primary: const Color(0xFF4F46E5),
         secondary: const Color(0xFF6366F1),
-        background: const Color(0xFFF8F9FA),
-        surface: Colors.white,
+        surface: const Color(0xFFF8F9FA),
+        onSurface: const Color(0xFF212529),
+        surfaceContainer: Colors.white,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
-        onBackground: const Color(0xFF212529),
-        onSurface: const Color(0xFF212529),
         error: const Color(0xFFD32F2F),
       ),
       textTheme: GoogleFonts.interTextTheme(Theme.of(context).textTheme),
@@ -60,6 +59,7 @@ class MyApp extends ConsumerWidget {
           borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 2),
         ),
       ),
+      // CORREÇÃO: O construtor correto é CardTheme.
       cardTheme: CardTheme(
         elevation: 0,
         shape: RoundedRectangleBorder(

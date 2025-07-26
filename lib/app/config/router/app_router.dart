@@ -1,25 +1,65 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:controlab/features/auth/application/auth_notifier.dart';
 import 'package:controlab/features/auth/ui/screens/login_screen.dart';
 import 'package:controlab/features/stock/ui/screens/home_screen.dart';
 import 'package:controlab/features/stock/ui/screens/product_details_screen.dart';
 import 'package:controlab/app/core/ui/widgets/scaffold_with_nav_bar.dart';
 
-// Enum para as rotas, evitando o uso de strings "mágicas".
-enum AppRoute { login, home, productDetails, profile, settings }
+enum AppRoute {
+  login,
+  home,
+  productDetails,
+  profile,
+  settings,
+}
 
-// Provider do GoRouter para ser acessado globalmente.
+// Classe auxiliar para notificar o GoRouter sobre mudanças no stream de autenticação.
+class GoRouterRefreshStream extends ChangeNotifier {
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    notifyListeners();
+    _subscription = stream.asBroadcastStream().listen((_) => notifyListeners());
+  }
+
+  late final StreamSubscription<dynamic> _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
+
 final routerProvider = Provider<GoRouter>((ref) {
+  final authNotifier = ref.watch(authNotifierProvider.notifier);
+
   return GoRouter(
     initialLocation: '/login',
+    // O refreshListenable garante que o GoRouter reavalie as rotas quando o estado de autenticação mudar.
+    // CORREÇÃO: O stream é acessado a partir do provider, não do notifier.
+    refreshListenable: GoRouterRefreshStream(ref.watch(authNotifierProvider.stream)),
+    redirect: (BuildContext context, GoRouterState state) {
+      final bool loggedIn = authNotifier.isAuthenticated;
+      final bool isLoggingIn = state.uri.toString() == '/login';
+
+      if (!loggedIn && !isLoggingIn) {
+        return '/login';
+      }
+
+      if (loggedIn && isLoggingIn) {
+        return '/home';
+      }
+
+      return null;
+    },
     routes: [
       GoRoute(
         path: '/login',
         name: AppRoute.login.name,
         builder: (context, state) => const LoginScreen(),
       ),
-      // ShellRoute permite UI persistente (como a BottomNavBar) entre rotas filhas.
       ShellRoute(
         builder: (context, state, child) {
           return ScaffoldWithNavBar(child: child);
@@ -43,14 +83,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/profile',
             name: AppRoute.profile.name,
-            builder: (context, state) =>
-                const PlaceholderScreen(title: 'Perfil'),
+            builder: (context, state) => const PlaceholderScreen(title: 'Perfil'),
           ),
           GoRoute(
             path: '/settings',
             name: AppRoute.settings.name,
-            builder: (context, state) =>
-                const PlaceholderScreen(title: 'Configurações'),
+            builder: (context, state) => const PlaceholderScreen(title: 'Configurações'),
           ),
         ],
       ),
@@ -68,10 +106,7 @@ class PlaceholderScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: Center(
-        child: Text(
-          'Tela de $title',
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
+        child: Text('Tela de $title', style: Theme.of(context).textTheme.headlineMedium),
       ),
     );
   }
