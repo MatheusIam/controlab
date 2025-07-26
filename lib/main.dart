@@ -12,40 +12,29 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Assiste ao provider do GoRouter para obter a configuração de rotas.
     final router = ref.watch(goRouterProvider);
 
-    // Define as cores primárias e secundárias para o tema.
     const primaryColor = Color(0xFF005B96);
     const secondaryColor = Color(0xFF64C7CC);
-    const surfaceColor = Color(0xFFF0F4F8); // Um cinza azulado claro
-    const backgroundColor = Color(
-      0xFFE4EBF1,
-    ); // Um fundo ligeiramente mais escuro
+    const surfaceColor = Color(0xFFF0F4F8);
+    const backgroundColor = Color(0xFFE4EBF1);
 
-    // Cria o tema da aplicação.
     final theme = ThemeData(
       useMaterial3: true,
-      // Define a paleta de cores principal.
       colorScheme: ColorScheme.fromSeed(
         seedColor: primaryColor,
         primary: primaryColor,
         secondary: secondaryColor,
         surface: surfaceColor,
-        background: backgroundColor,
-        // Define cores para contraste, como texto sobre fundos coloridos.
         onPrimary: Colors.white,
         onSecondary: Colors.black,
-        onSurface: const Color(
-          0xFF0A2540,
-        ), // Texto escuro para boa legibilidade
+        onSurface: const Color(0xFF0A2540),
         onError: Colors.white,
       ),
-      // Define a fonte padrão da aplicação usando Google Fonts.
+      scaffoldBackgroundColor: backgroundColor,
       textTheme: GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme),
-      // Define o tema para os cards.
+      // CORREÇÃO: O construtor correto é CardThemeData.
       cardTheme: const CardThemeData(
-        // CORREÇÃO: Utilizado CardThemeData em vez de CardTheme.
         elevation: 2,
         margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         shape: RoundedRectangleBorder(
@@ -54,7 +43,6 @@ class MyApp extends ConsumerWidget {
         surfaceTintColor: Colors.white,
         color: Colors.white,
       ),
-      // Define o tema para os botões elevados.
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
@@ -63,29 +51,35 @@ class MyApp extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         ),
       ),
-      // Define o tema para a AppBar.
       appBarTheme: const AppBarTheme(
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        foregroundColor: Color(0xFF0A2540),
         elevation: 0,
+        centerTitle: true,
+        titleTextStyle: TextStyle(
+          fontFamily: 'Poppins',
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF0A2540),
+        ),
       ),
-      // Define o tema para a NavigationBar.
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: Colors.white,
-        indicatorColor: secondaryColor.withOpacity(0.2),
+        // CORREÇÃO: 'withOpacity' substituído por um método não depreciado.
+        indicatorColor: secondaryColor.withAlpha(
+          51,
+        ), // Equivalente a opacidade de 0.2
         surfaceTintColor: Colors.white,
-        labelTextStyle: MaterialStateProperty.all(
+        labelTextStyle: WidgetStateProperty.all(
           const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
         ),
       ),
     );
 
-    // Retorna o MaterialApp.router para usar o GoRouter.
     return MaterialApp.router(
       title: 'Controlab',
       debugShowCheckedModeBanner: false,
       theme: theme,
-      // Configuração de rotas fornecida pelo GoRouter.
       routerConfig: router,
     );
   }

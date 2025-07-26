@@ -8,26 +8,20 @@ import 'package:controlab/features/stock/ui/screens/product_details_screen.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
-// Importação que faltava para o ScaffoldWithNavBar
 import 'package:controlab/app/core/ui/widgets/scaffold_with_nav_bar.dart';
 
-// Enum para as rotas da aplicação para evitar erros de digitação.
-enum AppRoute { home, login, productDetails }
+enum AppRoute { home, login, productDetails, settings }
 
-// Provider para o GoRouter
 final goRouterProvider = Provider<GoRouter>((ref) {
-  // Notifier para escutar as mudanças de autenticação e atualizar o router.
-  // Esta é a abordagem recomendada para o refreshListenable.
-  final authState = GoRouterRefreshStream(
-    ref.watch(authNotifierProvider.notifier).stream,
+  // CORREÇÃO: A lógica foi alterada para usar o novo authStateChangesProvider.
+  // Isso fornece um stream estável para o GoRouter escutar.
+  final refreshListenable = GoRouterRefreshStream(
+    ref.watch(authStateChangesProvider.stream),
   );
 
   return GoRouter(
     initialLocation: '/login',
-    // O refreshListenable agora escuta o nosso notifier.
-    refreshListenable: authState,
-    // Chave global para o Navigator principal.
+    refreshListenable: refreshListenable,
     navigatorKey: _rootNavigatorKey,
     routes: [
       GoRoute(
@@ -35,26 +29,23 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         name: AppRoute.login.name,
         builder: (context, state) => const LoginScreen(),
       ),
-      // Rota aninhada para telas que usam a barra de navegação.
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
-          // O widget ScaffoldWithNavBar agora é resolvido corretamente.
           return ScaffoldWithNavBar(navigationShell: navigationShell);
         },
         branches: [
-          // Branch para a tela principal (Home)
           StatefulShellBranch(
-            navigatorKey: _shellNavigatorKey,
+            navigatorKey: _homeNavigatorKey,
             routes: [
               GoRoute(
                 path: '/home',
                 name: AppRoute.home.name,
                 builder: (context, state) => const HomeScreen(),
                 routes: [
-                  // Rota de detalhe do produto aninhada sob a home.
                   GoRoute(
                     path: 'product-details/:id',
                     name: AppRoute.productDetails.name,
+                    parentNavigatorKey: _rootNavigatorKey,
                     builder: (context, state) {
                       final productId = state.pathParameters['id']!;
                       return ProductDetailsScreen(productId: productId);
@@ -64,53 +55,54 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // Outras branches (telas) da barra de navegação podem ser adicionadas aqui.
-          // Exemplo:
-          // StatefulShellBranch(
-          //   routes: [
-          //     GoRoute(
-          //       path: '/settings',
-          //       builder: (context, state) => const SettingsScreen(),
-          //     ),
-          //   ],
-          // ),
+          StatefulShellBranch(
+            navigatorKey: _settingsNavigatorKey,
+            routes: [
+              GoRoute(
+                path: '/settings',
+                name: AppRoute.settings.name,
+                builder: (context, state) =>
+                    const Center(child: Text('Tela de Configurações')),
+              ),
+            ],
+          ),
         ],
       ),
     ],
     redirect: (BuildContext context, GoRouterState state) {
-      // Lógica de redirecionamento baseada no estado de autenticação.
-      final user = ref.read(authNotifierProvider).value;
-      final isAuthenticated = user != null;
+      // A lógica de redirect continua lendo o estado do AuthNotifier
+      // para tomar a decisão no momento do redirecionamento.
+      final authState = ref.read(authNotifierProvider);
+      final isAuthenticated = authState.hasValue && authState.value != null;
       final isLoggingIn = state.matchedLocation == '/login';
 
       if (!isAuthenticated) {
-        // Se não estiver autenticado, redireciona para o login.
         return isLoggingIn ? null : '/login';
       }
 
-      if (isLoggingIn) {
-        // Se estiver autenticado e na tela de login, redireciona para a home.
+      if (isLoggingIn && isAuthenticated) {
         return '/home';
       }
 
-      return null; // Nenhuma ação de redirecionamento necessária.
+      return null;
     },
   );
 });
 
-// Chaves de navegador para o GoRouter.
-// Uma para o roteador raiz e outra para o shell de navegação interna.
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
-final _shellNavigatorKey = GlobalKey<NavigatorState>();
+final _homeNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'HomeShell');
+final _settingsNavigatorKey = GlobalKey<NavigatorState>(
+  debugLabel: 'SettingsShell',
+);
 
-// Classe auxiliar que converte o Stream de autenticação em um Listenable.
-// O GoRouter usa isso para saber quando reavaliar suas rotas (redirect).
 class GoRouterRefreshStream extends ChangeNotifier {
-  late final StreamSubscription<User?> _subscription;
+  late final StreamSubscription<dynamic> _subscription;
 
-  GoRouterRefreshStream(Stream<User?> stream) {
+  GoRouterRefreshStream(Stream<dynamic> stream) {
     notifyListeners();
-    _subscription = stream.asBroadcastStream().listen((_) => notifyListeners());
+    _subscription = stream.asBroadcastStream().listen(
+      (dynamic _) => notifyListeners(),
+    );
   }
 
   @override

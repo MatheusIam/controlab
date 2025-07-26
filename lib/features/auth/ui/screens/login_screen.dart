@@ -1,5 +1,5 @@
+import 'package:controlab/features/auth/domain/user.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:controlab/features/auth/application/auth_notifier.dart';
 
@@ -10,14 +10,17 @@ class LoginScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authNotifierProvider);
 
-    // Ouve o estado do notifier para navegação ou exibição de erros.
-    ref.listen<AsyncValue<void>>(authNotifierProvider, (_, state) {
-      if (state is AsyncData) {
-        context.go('/home');
-      }
-      if (state is AsyncError) {
+    // Ouve o estado do notifier para exibição de erros.
+    // A navegação agora é tratada pelo redirect do GoRouter.
+    ref.listen<AsyncValue<User?>>(authNotifierProvider, (_, state) {
+      if (state.hasError && !state.isLoading) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(state.error.toString())),
+          SnackBar(
+            content: Text(
+              state.error.toString(),
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     });
@@ -102,7 +105,10 @@ class _LoginFormState extends ConsumerState<_LoginForm> {
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
-      ref.read(authNotifierProvider.notifier).login(
+      // CORREÇÃO: O método foi renomeado para 'signInWithEmailAndPassword'.
+      ref
+          .read(authNotifierProvider.notifier)
+          .signInWithEmailAndPassword(
             _emailController.text,
             _passwordController.text,
           );
@@ -148,7 +154,9 @@ class _LoginFormState extends ConsumerState<_LoginForm> {
               prefixIcon: const Icon(Icons.lock_outline),
               suffixIcon: IconButton(
                 icon: Icon(
-                  _obscureText ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  _obscureText
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
                 ),
                 onPressed: _togglePasswordVisibility,
               ),

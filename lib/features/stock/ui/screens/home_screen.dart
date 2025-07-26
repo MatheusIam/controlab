@@ -1,3 +1,4 @@
+import 'package:controlab/features/auth/domain/user.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,32 +12,40 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stockListAsync = ref.watch(stockListProvider);
-    // CORREÇÃO: Esta linha agora funciona, pois o provider gerencia o estado de User?
-    final user = ref.watch(authNotifierProvider).value;
+    // Ouve o estado de autenticação para obter o usuário.
+    final AsyncValue<User?> authState = ref.watch(authNotifierProvider);
+    final User? user = authState.value;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(user?.name ?? 'Estoque da Clínica'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sair',
-            onPressed: () {
-              // CORREÇÃO: O método logout() agora está disponível no notifier.
-              ref.read(authNotifierProvider.notifier).logout();
-            },
-          ),
-        ],
-      ),
+      // A AppBar foi movida para o ScaffoldWithNavBar, esta é opcional
+      // caso queira uma AppBar específica para esta tela.
+      // appBar: AppBar(
+      //   title: Text(user?.name ?? 'Estoque da Clínica'),
+      // ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Text(
+              'Olá, ${user?.name ?? 'Usuário'}!',
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: TextField(
               decoration: InputDecoration(
                 hintText: 'Buscar produto...',
                 prefixIcon: const Icon(Icons.search),
-                fillColor: Theme.of(context).colorScheme.surfaceContainer,
+                fillColor: Theme.of(context).cardColor,
+                filled: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
           ),
@@ -53,17 +62,13 @@ class HomeScreen extends ConsumerWidget {
                 return RefreshIndicator(
                   onRefresh: () => ref.refresh(stockListProvider.future),
                   child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: produtos.length,
                     itemBuilder: (context, index) {
                       final produto = produtos[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12.0),
-                        child: ProdutoListItem(
-                          produto: produto,
-                          onTap: () =>
-                              context.go('/home/product/${produto.id}'),
-                        ),
+                      return ProdutoListItem(
+                        produto: produto,
+                        onTap: () =>
+                            context.go('/home/product-details/${produto.id}'),
                       );
                     },
                   ),
