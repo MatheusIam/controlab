@@ -12,6 +12,8 @@ dependencies:
   flutter_riverpod: ^2.6.1
   google_fonts: ^6.2.1
   go_router: ^14.1.0
+  # Adicionada dependência para gráficos
+  fl_chart: ^0.68.0
 
 dev_dependencies:
   flutter_test:
@@ -20,3 +22,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Registra o diretório de assets para que as imagens possam ser usadas no app.
+  assets:
+    - assets/images/

@@ -41,7 +41,7 @@ class MockAuthRepository implements IAuthRepository {
   ) async {
     await Future.delayed(const Duration(seconds: 1));
     if (email == 'demo@controlab.com' && password == '123456') {
-      _user = User(id: 'user-123', name: 'Dr. Ricardo', email: email);
+      _user = User(id: 'user-123', name: 'Dr. Luana Souza', email: email);
       _authStateController.add(_user);
       return Right(_user!);
     } else {

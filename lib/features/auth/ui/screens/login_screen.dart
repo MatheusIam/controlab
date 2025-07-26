@@ -1,7 +1,7 @@
-import 'package:controlab/features/auth/domain/user.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:controlab/features/auth/application/auth_notifier.dart';
+import 'package:controlab/features/auth/domain/user.dart';
 
 class LoginScreen extends ConsumerWidget {
   const LoginScreen({super.key});
@@ -10,23 +10,18 @@ class LoginScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authNotifierProvider);
 
-    // Ouve o estado do notifier para exibição de erros.
-    // A navegação agora é tratada pelo redirect do GoRouter.
     ref.listen<AsyncValue<User?>>(authNotifierProvider, (_, state) {
       if (state.hasError && !state.isLoading) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              state.error.toString(),
-            ),
-            backgroundColor: Colors.red,
+            content: Text(state.error.toString()),
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
     });
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -34,48 +29,42 @@ class LoginScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 40),
-              // Placeholder para a imagem/logo
-              Container(
-                height: 150,
-                width: 150,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade200,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Icon(
-                  Icons.biotech,
-                  size: 80,
-                  color: Colors.grey.shade400,
-                ),
-              ),
-              const SizedBox(height: 40),
+              // INSTRUÇÕES PARA ADICIONAR A IMAGEM:
+              // 1. Crie uma pasta chamada 'assets' na raiz do seu projeto.
+              // 2. Dentro de 'assets', crie outra pasta chamada 'images'.
+              // 3. Coloque o arquivo da sua imagem (ex: 'cientista.jpg') dentro de 'assets/images/'.
+              // 4. Abra o arquivo 'pubspec.yaml'.
+              // 5. Na seção 'flutter', adicione a seguinte configuração:
+              //
+              //    flutter:
+              //      assets:
+              //        - assets/images/
+              //
+              // 6. Salve o arquivo 'pubspec.yaml'. O Flutter irá registrar o asset.
+              // 7. Agora você pode usar a imagem no código como abaixo.
+              Image.asset('assets/images/cientista.png', height: 180),
+              const SizedBox(height: 20),
               Text(
-                'Bem-vindo de volta!',
+                'Controlab',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Acesse sua conta para gerenciar o estoque.',
+                'Acesse para gerenciar seu estoque.',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: Colors.grey.shade600,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(color: Colors.grey.shade600),
               ),
               const SizedBox(height: 40),
               const _LoginForm(),
               const SizedBox(height: 24),
               if (authState.isLoading)
                 const Center(child: CircularProgressIndicator()),
-              const SizedBox(height: 24),
-              TextButton(
-                onPressed: () {
-                  // Ação para "Esqueceu a senha?"
-                },
-                child: const Text('Esqueceu a senha?'),
-              ),
             ],
           ),
         ),
@@ -95,17 +84,9 @@ class _LoginFormState extends ConsumerState<_LoginForm> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController(text: 'demo@controlab.com');
   final _passwordController = TextEditingController(text: '123456');
-  bool _obscureText = true;
-
-  void _togglePasswordVisibility() {
-    setState(() {
-      _obscureText = !_obscureText;
-    });
-  }
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
-      // CORREÇÃO: O método foi renomeado para 'signInWithEmailAndPassword'.
       ref
           .read(authNotifierProvider.notifier)
           .signInWithEmailAndPassword(
@@ -148,18 +129,10 @@ class _LoginFormState extends ConsumerState<_LoginForm> {
           const SizedBox(height: 16),
           TextFormField(
             controller: _passwordController,
-            obscureText: _obscureText,
-            decoration: InputDecoration(
+            obscureText: true,
+            decoration: const InputDecoration(
               labelText: 'Senha',
-              prefixIcon: const Icon(Icons.lock_outline),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscureText
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                ),
-                onPressed: _togglePasswordVisibility,
-              ),
+              prefixIcon: Icon(Icons.lock_outline),
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
