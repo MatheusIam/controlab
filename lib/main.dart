@@ -1,13 +1,10 @@
+import 'package:controlab/app/config/router/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:controlab/app/config/router/app_router.dart';
 
 void main() {
-  runApp(
-    // O ProviderScope armazena o estado dos providers.
-    const ProviderScope(child: MyApp()),
-  );
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends ConsumerWidget {
@@ -15,84 +12,80 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Observa o provider do router para reações a mudanças de estado de autenticação.
-    final router = ref.watch(routerProvider);
+    // Assiste ao provider do GoRouter para obter a configuração de rotas.
+    final router = ref.watch(goRouterProvider);
 
-    // Define o tema base da aplicação com Material 3 e fontes customizadas.
+    // Define as cores primárias e secundárias para o tema.
+    const primaryColor = Color(0xFF005B96);
+    const secondaryColor = Color(0xFF64C7CC);
+    const surfaceColor = Color(0xFFF0F4F8); // Um cinza azulado claro
+    const backgroundColor = Color(
+      0xFFE4EBF1,
+    ); // Um fundo ligeiramente mais escuro
+
+    // Cria o tema da aplicação.
     final theme = ThemeData(
       useMaterial3: true,
+      // Define a paleta de cores principal.
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF4F46E5),
-        brightness: Brightness.light,
-        primary: const Color(0xFF4F46E5),
-        secondary: const Color(0xFF6366F1),
-        surface: const Color(0xFFF8F9FA),
-        onSurface: const Color(0xFF212529),
-        surfaceContainer: Colors.white,
+        seedColor: primaryColor,
+        primary: primaryColor,
+        secondary: secondaryColor,
+        surface: surfaceColor,
+        background: backgroundColor,
+        // Define cores para contraste, como texto sobre fundos coloridos.
         onPrimary: Colors.white,
-        onSecondary: Colors.white,
-        error: const Color(0xFFD32F2F),
+        onSecondary: Colors.black,
+        onSurface: const Color(
+          0xFF0A2540,
+        ), // Texto escuro para boa legibilidade
+        onError: Colors.white,
       ),
-      textTheme: GoogleFonts.interTextTheme(Theme.of(context).textTheme),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: const Color(0xFFF3F4F6),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 2),
-        ),
-      ),
-      // CORREÇÃO: O construtor correto é CardTheme.
-      cardTheme: CardTheme(
-        elevation: 0,
+      // Define a fonte padrão da aplicação usando Google Fonts.
+      textTheme: GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme),
+      // Define o tema para os cards.
+      cardTheme: const CardThemeData(
+        // CORREÇÃO: Utilizado CardThemeData em vez de CardTheme.
+        elevation: 2,
+        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.0),
-          side: BorderSide(color: Colors.grey.shade200, width: 1),
+          borderRadius: BorderRadius.all(Radius.circular(12)),
         ),
-        clipBehavior: Clip.antiAlias,
+        surfaceTintColor: Colors.white,
+        color: Colors.white,
       ),
+      // Define o tema para os botões elevados.
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        ),
+      ),
+      // Define o tema para a AppBar.
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFFF8F9FA),
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
         elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: true,
-        titleTextStyle: TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF212529),
-        ),
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      // Define o tema para a NavigationBar.
+      navigationBarTheme: NavigationBarThemeData(
         backgroundColor: Colors.white,
-        selectedItemColor: Color(0xFF4F46E5),
-        unselectedItemColor: Color(0xFF6C757D),
-        elevation: 8,
-        type: BottomNavigationBarType.fixed,
+        indicatorColor: secondaryColor.withOpacity(0.2),
+        surfaceTintColor: Colors.white,
+        labelTextStyle: MaterialStateProperty.all(
+          const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        ),
       ),
     );
 
+    // Retorna o MaterialApp.router para usar o GoRouter.
     return MaterialApp.router(
-      title: 'ControLab',
+      title: 'Controlab',
       debugShowCheckedModeBanner: false,
       theme: theme,
+      // Configuração de rotas fornecida pelo GoRouter.
       routerConfig: router,
     );
   }

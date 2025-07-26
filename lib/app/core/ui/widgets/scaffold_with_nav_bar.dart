@@ -1,113 +1,77 @@
-import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:controlab/features/auth/application/auth_notifier.dart';
-import 'package:controlab/features/auth/ui/screens/login_screen.dart';
-import 'package:controlab/features/stock/ui/screens/home_screen.dart';
-import 'package:controlab/features/stock/ui/screens/product_details_screen.dart';
-import 'package:controlab/app/core/ui/widgets/scaffold_with_nav_bar.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-enum AppRoute { login, home, productDetails, profile, settings }
+/// Widget que representa a estrutura principal da tela com uma barra de navegação.
+/// Este widget é usado pelo [StatefulShellRoute] do GoRouter para encapsular
+/// as diferentes branches (telas) da navegação.
+class ScaffoldWithNavBar extends ConsumerWidget {
+  const ScaffoldWithNavBar({required this.navigationShell, Key? key})
+    : super(key: key ?? const ValueKey<String>('ScaffoldWithNavBar'));
 
-// Classe auxiliar para notificar o GoRouter sobre mudanças no stream de autenticação.
-class GoRouterRefreshStream extends ChangeNotifier {
-  GoRouterRefreshStream(Stream<dynamic> stream) {
-    notifyListeners();
-    _subscription = stream.asBroadcastStream().listen((_) => notifyListeners());
-  }
-
-  late final StreamSubscription<dynamic> _subscription;
+  /// O shell de navegação fornecido pelo GoRouter. Contém o widget filho
+  /// (a tela atual) e os métodos para navegar entre as branches.
+  final StatefulNavigationShell navigationShell;
 
   @override
-  void dispose() {
-    _subscription.cancel();
-    super.dispose();
-  }
-}
-
-final routerProvider = Provider<GoRouter>((ref) {
-  final authNotifier = ref.watch(authNotifierProvider.notifier);
-
-  return GoRouter(
-    initialLocation: '/login',
-    // O refreshListenable garante que o GoRouter reavalie as rotas quando o estado de autenticação mudar.
-    // CORREÇÃO: O stream é acessado a partir do provider, não do notifier.
-    refreshListenable: GoRouterRefreshStream(
-      ref.watch(authNotifierProvider.stream),
-    ),
-    redirect: (BuildContext context, GoRouterState state) {
-      final bool loggedIn = authNotifier.isAuthenticated;
-      final bool isLoggingIn = state.uri.toString() == '/login';
-
-      if (!loggedIn && !isLoggingIn) {
-        return '/login';
-      }
-
-      if (loggedIn && isLoggingIn) {
-        return '/home';
-      }
-
-      return null;
-    },
-    routes: [
-      GoRoute(
-        path: '/login',
-        name: AppRoute.login.name,
-        builder: (context, state) => const LoginScreen(),
-      ),
-      ShellRoute(
-        builder: (context, state, child) {
-          return ScaffoldWithNavBar(child: child);
-        },
-        routes: [
-          GoRoute(
-            path: '/home',
-            name: AppRoute.home.name,
-            builder: (context, state) => const HomeScreen(),
-            routes: [
-              GoRoute(
-                path: 'product/:id',
-                name: AppRoute.productDetails.name,
-                builder: (context, state) {
-                  final productId = state.pathParameters['id']!;
-                  return ProductDetailsScreen(productId: productId);
-                },
-              ),
-            ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Escuta as mudanças no estado de autenticação para, por exemplo,
+    // deslogar o usuário caso o estado se torne nulo.
+    ref.listen<AsyncValue<void>>(authNotifierProvider, (_, state) {
+      // Exemplo: poderia mostrar um snackbar em caso de erro de autenticação.
+      if (state.hasError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro de autenticação: ${state.error}'),
+            backgroundColor: Colors.red,
           ),
-          GoRoute(
-            path: '/profile',
-            name: AppRoute.profile.name,
-            builder: (context, state) =>
-                const PlaceholderScreen(title: 'Perfil'),
+        );
+      }
+    });
+
+    return Scaffold(
+      // O corpo do Scaffold é a tela atual gerenciada pelo navigationShell.
+      body: navigationShell,
+      // A barra de navegação inferior.
+      bottomNavigationBar: NavigationBar(
+        // O índice atual é controlado pelo navigationShell.
+        selectedIndex: navigationShell.currentIndex,
+        // Destinos da barra de navegação.
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Início',
           ),
-          GoRoute(
-            path: '/settings',
-            name: AppRoute.settings.name,
-            builder: (context, state) =>
-                const PlaceholderScreen(title: 'Configurações'),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: 'Configurações',
           ),
         ],
+        // Ao tocar em um item, o navigationShell é instruído a navegar
+        // para a branch correspondente.
+        onDestinationSelected: (index) {
+          navigationShell.goBranch(
+            index,
+            // Mantém o estado da branch anterior ao navegar.
+            initialLocation: index == navigationShell.currentIndex,
+          );
+        },
       ),
-    ],
-  );
-});
-
-// Tela genérica para funcionalidades ainda não implementadas.
-class PlaceholderScreen extends StatelessWidget {
-  final String title;
-  const PlaceholderScreen({super.key, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Text(
-          'Tela de $title',
-          style: Theme.of(context).textTheme.headlineMedium,
-        ),
+      // Exemplo de AppBar que poderia ter ações de logout.
+      appBar: AppBar(
+        title: const Text('Controlab'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              // Chama o método de logout do notificador de autenticação.
+              await ref.read(authNotifierProvider.notifier).signOut();
+            },
+          ),
+        ],
       ),
     );
   }
