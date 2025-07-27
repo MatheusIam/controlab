@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:controlab/features/auth/application/auth_notifier.dart';
 import 'package:controlab/features/auth/domain/user.dart';
 import 'package:controlab/features/auth/ui/screens/login_screen.dart';
+import 'package:controlab/features/stock/ui/screens/add_product_screen.dart'; // Importa a nova tela
 import 'package:controlab/features/stock/ui/screens/home_screen.dart';
 import 'package:controlab/features/stock/ui/screens/product_details_screen.dart';
 import 'package:flutter/material.dart';
@@ -10,11 +11,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:controlab/app/core/ui/widgets/scaffold_with_nav_bar.dart';
 
-enum AppRoute { home, login, productDetails, settings }
+enum AppRoute {
+  home,
+  login,
+  productDetails,
+  addProduct, // Nova rota
+  settings,
+}
 
 final goRouterProvider = Provider<GoRouter>((ref) {
-  // CORREÇÃO: A lógica foi alterada para usar o novo authStateChangesProvider.
-  // Isso fornece um stream estável para o GoRouter escutar.
   final refreshListenable = GoRouterRefreshStream(
     ref.watch(authStateChangesProvider.stream),
   );
@@ -51,6 +56,13 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                       return ProductDetailsScreen(productId: productId);
                     },
                   ),
+                  // Rota para adicionar produto, aninhada sob a home
+                  GoRoute(
+                    path: 'add-product',
+                    name: AppRoute.addProduct.name,
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (context, state) => const AddProductScreen(),
+                  ),
                 ],
               ),
             ],
@@ -70,8 +82,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
     redirect: (BuildContext context, GoRouterState state) {
-      // A lógica de redirect continua lendo o estado do AuthNotifier
-      // para tomar a decisão no momento do redirecionamento.
       final authState = ref.read(authNotifierProvider);
       final isAuthenticated = authState.hasValue && authState.value != null;
       final isLoggingIn = state.matchedLocation == '/login';

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:controlab/features/stock/application/stock_providers.dart';
 import 'package:controlab/features/stock/ui/widgets/produto_list_item.dart';
 import 'package:controlab/features/auth/application/auth_notifier.dart';
+import 'package:controlab/app/config/router/app_router.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -12,16 +13,10 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stockListAsync = ref.watch(stockListProvider);
-    // Ouve o estado de autenticação para obter o usuário.
     final AsyncValue<User?> authState = ref.watch(authNotifierProvider);
     final User? user = authState.value;
 
     return Scaffold(
-      // A AppBar foi movida para o ScaffoldWithNavBar, esta é opcional
-      // caso queira uma AppBar específica para esta tela.
-      // appBar: AppBar(
-      //   title: Text(user?.name ?? 'Estoque da Clínica'),
-      // ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -40,12 +35,6 @@ class HomeScreen extends ConsumerWidget {
               decoration: InputDecoration(
                 hintText: 'Buscar produto...',
                 prefixIcon: const Icon(Icons.search),
-                fillColor: Theme.of(context).cardColor,
-                filled: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
               ),
             ),
           ),
@@ -67,8 +56,10 @@ class HomeScreen extends ConsumerWidget {
                       final produto = produtos[index];
                       return ProdutoListItem(
                         produto: produto,
-                        onTap: () =>
-                            context.go('/home/product-details/${produto.id}'),
+                        onTap: () => context.goNamed(
+                          AppRoute.productDetails.name,
+                          pathParameters: {'id': produto.id},
+                        ),
                       );
                     },
                   ),
@@ -79,7 +70,10 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
+        onPressed: () {
+          // Navega para a tela de adicionar produto
+          context.goNamed(AppRoute.addProduct.name);
+        },
         label: const Text('Adicionar'),
         icon: const Icon(Icons.add),
       ),
