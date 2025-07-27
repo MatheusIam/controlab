@@ -14,13 +14,13 @@ class MyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(goRouterProvider);
 
-    // Nova paleta de cores com tons de verde
-    const primaryColor = Color(0xFF2D5A5A);
-    const secondaryColor = Color(0xFF5A8E8A);
-    const accentColor = Color(0xFF94CFC9);
-    const backgroundColor = Color(0xFFF0F7F6);
+    // Nova paleta de cores inspirada na personagem
+    const primaryColor = Color(0xFF4A3F7A); // Roxo escuro
+    const secondaryColor = Color(0xFF7B6FBF); // Roxo médio
+    const accentColor = Color(0xFFB8B0E0); // Roxo claro (lavanda)
+    const backgroundColor = Color(0xFFF4F3F8); // Fundo quase branco
     const surfaceColor = Colors.white;
-    const textColor = Color(0xFF1E3A3A);
+    const textColor = Color(0xFF2C254A); // Texto roxo bem escuro
 
     final theme = ThemeData(
       useMaterial3: true,
@@ -33,7 +33,7 @@ class MyApp extends ConsumerWidget {
         onPrimary: Colors.white,
         onSecondary: Colors.white,
         onSurface: textColor,
-        onError: Colors.white,
+        error: Colors.redAccent,
         brightness: Brightness.light,
       ),
       scaffoldBackgroundColor: backgroundColor,

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
+import 'package:controlab/features/stock/application/stock_notifier.dart';
+import 'package:controlab/features/auth/application/auth_notifier.dart';
 
-class ProdutoListItem extends StatelessWidget {
+class ProdutoListItem extends ConsumerWidget {
   final Produto produto;
   final VoidCallback onTap;
 
@@ -12,16 +15,21 @@ class ProdutoListItem extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final statusInfo = produto.status.displayAttributes;
+    final colors = Theme.of(context).colorScheme;
+    final user = ref.watch(authNotifierProvider).value;
+
     return Card(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
+              Icon(Icons.science_outlined, color: colors.primary, size: 40),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -29,40 +37,46 @@ class ProdutoListItem extends StatelessWidget {
                     Text(
                       produto.nome,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${produto.quantidade} unidades',
+                      'Estoque: ${produto.quantidade}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey.shade600,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: statusInfo.backgroundColor,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        statusInfo.text,
-                        style: TextStyle(
-                          color: statusInfo.textColor,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12,
-                        ),
+                        color: Colors.grey.shade600,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 16),
-              const Icon(Icons.chevron_right, color: Colors.grey),
+              // Botões de movimentação rápida
+              IconButton(
+                icon: Icon(Icons.remove_circle, color: colors.error),
+                onPressed: () {
+                  if (produto.quantidade > 0) {
+                    ref
+                        .read(stockNotifierProvider.notifier)
+                        .updateStock(
+                          produto.id,
+                          produto.quantidade - 1,
+                          user?.name ?? 'System',
+                        );
+                  }
+                },
+              ),
+              IconButton(
+                icon: Icon(Icons.add_circle, color: colors.primary),
+                onPressed: () {
+                  ref
+                      .read(stockNotifierProvider.notifier)
+                      .updateStock(
+                        produto.id,
+                        produto.quantidade + 1,
+                        user?.name ?? 'System',
+                      );
+                },
+              ),
             ],
           ),
         ),

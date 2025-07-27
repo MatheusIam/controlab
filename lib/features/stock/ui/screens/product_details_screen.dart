@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:controlab/features/stock/application/stock_providers.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
+import 'package:intl/intl.dart';
 
 class ProductDetailsScreen extends ConsumerWidget {
   final String productId;
@@ -9,13 +10,15 @@ class ProductDetailsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // O provider agora retorna um AsyncValue<Produto> não nulo.
     final productAsync = ref.watch(productDetailsProvider(productId));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Detalhes do Produto')),
+      // A chamada a .when() agora é segura.
       body: productAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Erro: $err')),
+        error: (err, stack) => Center(child: Text('Erro: ${err.toString()}')),
         data: (produto) {
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -33,7 +36,7 @@ class ProductDetailsScreen extends ConsumerWidget {
                   ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 16),
-                const _MovimentacoesList(),
+                _MovimentacoesList(movimentacoes: produto.historicoUso),
               ],
             ),
           );
@@ -87,10 +90,10 @@ class _ProductHeader extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
-              Icons.local_hospital,
+            Icon(
+              Icons.science_outlined,
               size: 40,
-              color: Color(0xFF4F46E5),
+              color: Theme.of(context).colorScheme.primary,
             ),
           ],
         ),
@@ -111,7 +114,7 @@ class _ProductInfoGrid extends StatelessWidget {
           children: [
             Expanded(
               child: _InfoCard(
-                icon: Icons.inventory,
+                icon: Icons.inventory_2_outlined,
                 label: 'Quantidade',
                 value: '${produto.quantidade} un.',
               ),
@@ -119,7 +122,7 @@ class _ProductInfoGrid extends StatelessWidget {
             const SizedBox(width: 16),
             Expanded(
               child: _InfoCard(
-                icon: Icons.factory,
+                icon: Icons.factory_outlined,
                 label: 'Fornecedor',
                 value: produto.fornecedor,
               ),
@@ -131,7 +134,7 @@ class _ProductInfoGrid extends StatelessWidget {
           children: [
             Expanded(
               child: _InfoCard(
-                icon: Icons.calendar_today,
+                icon: Icons.calendar_today_outlined,
                 label: 'Validade',
                 value: produto.validade,
               ),
@@ -139,7 +142,7 @@ class _ProductInfoGrid extends StatelessWidget {
             const SizedBox(width: 16),
             Expanded(
               child: _InfoCard(
-                icon: Icons.qr_code_2,
+                icon: Icons.qr_code_2_outlined,
                 label: 'Lote',
                 value: produto.lote,
               ),
@@ -194,55 +197,51 @@ class _InfoCard extends StatelessWidget {
 }
 
 class _MovimentacoesList extends StatelessWidget {
-  const _MovimentacoesList();
+  final List<MovimentacaoEstoque> movimentacoes;
+  const _MovimentacoesList({required this.movimentacoes});
 
   @override
   Widget build(BuildContext context) {
-    // Dados mockados para as movimentações
-    final movimentacoes = [
-      {
-        'tipo': 'Entrada',
-        'qtd': '+50',
-        'data': '20/07/2025',
-        'cor': Colors.green.shade700,
-      },
-      {
-        'tipo': 'Saída',
-        'qtd': '-10',
-        'data': '22/07/2025',
-        'cor': Colors.red.shade700,
-      },
-      {
-        'tipo': 'Saída',
-        'qtd': '-5',
-        'data': '24/07/2025',
-        'cor': Colors.red.shade700,
-      },
-    ];
+    if (movimentacoes.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Center(child: Text('Nenhuma movimentação registrada.')),
+        ),
+      );
+    }
+
+    final sortedMovimentacoes = List<MovimentacaoEstoque>.from(movimentacoes)
+      ..sort((a, b) => b.data.compareTo(a.data));
 
     return Card(
-      child: Column(
-        children: List.generate(movimentacoes.length, (index) {
-          final mov = movimentacoes[index];
+      child: ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: sortedMovimentacoes.length,
+        itemBuilder: (context, index) {
+          final mov = sortedMovimentacoes[index];
+          final isEntrada = mov.tipo == TipoMovimentacao.entrada;
+          final color = isEntrada ? Colors.green.shade700 : Colors.red.shade700;
+          final icon = isEntrada ? Icons.arrow_downward : Icons.arrow_upward;
+          final prefix = isEntrada ? '+' : '-';
+
           return ListTile(
-            leading: Icon(
-              mov['tipo'] == 'Entrada'
-                  ? Icons.arrow_downward
-                  : Icons.arrow_upward,
-              color: mov['cor'] as Color,
+            leading: Icon(icon, color: color),
+            title: Text(
+              '${isEntrada ? 'Entrada' : 'Saída'} por ${mov.responsavel}',
             ),
-            title: Text(mov['tipo'] as String),
-            subtitle: Text(mov['data'] as String),
+            subtitle: Text(DateFormat('dd/MM/yyyy HH:mm').format(mov.data)),
             trailing: Text(
-              mov['qtd'] as String,
+              '$prefix${mov.quantidade}',
               style: TextStyle(
-                color: mov['cor'] as Color,
+                color: color,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
             ),
           );
-        }),
+        },
       ),
     );
   }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:controlab/features/stock/application/stock_notifier.dart';
+import 'package:controlab/features/stock/domain/produto.dart';
 
 class AddProductScreen extends ConsumerStatefulWidget {
   const AddProductScreen({super.key});
@@ -36,7 +38,6 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     );
     if (picked != null) {
       setState(() {
-        // Formata a data para o formato dd/MM/yyyy
         _expiryDateController.text =
             "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
       });
@@ -45,10 +46,24 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
-      // Lógica para adicionar o produto será implementada aqui
-      // com o StateNotifier e Repositório.
+      // Cria o objeto Produto com os dados do formulário.
+      final newProduct = Produto(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        nome: _nameController.text,
+        quantidade: int.parse(_quantityController.text),
+        fornecedor: _supplierController.text,
+        validade: _expiryDateController.text,
+        lote: _lotController.text,
+        // O status inicial é definido como 'emEstoque'.
+        // Lógicas mais complexas (como estoque baixo) podem ser adicionadas no notifier.
+        status: StatusProduto.emEstoque,
+        historicoUso: [],
+        alertas: [],
+      );
 
-      // Exibe um snackbar de sucesso (placeholder)
+      // Chama o método no notifier para adicionar o produto ao estado.
+      ref.read(stockNotifierProvider.notifier).addProduct(newProduct);
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Produto adicionado com sucesso!'),
@@ -56,7 +71,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         ),
       );
 
-      // Retorna para a tela anterior
+      // Retorna para a tela anterior após a submissão.
       context.pop();
     }
   }
@@ -83,8 +98,15 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                 controller: _quantityController,
                 decoration: const InputDecoration(labelText: 'Quantidade'),
                 keyboardType: TextInputType.number,
-                validator: (value) =>
-                    value!.isEmpty ? 'Campo obrigatório' : null,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Campo obrigatório';
+                  }
+                  if (int.tryParse(value) == null) {
+                    return 'Por favor, insira um número válido.';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
               TextFormField(

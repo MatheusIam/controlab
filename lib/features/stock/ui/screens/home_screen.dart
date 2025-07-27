@@ -2,6 +2,7 @@ import 'package:controlab/features/auth/domain/user.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:controlab/features/stock/application/stock_notifier.dart';
 import 'package:controlab/features/stock/application/stock_providers.dart';
 import 'package:controlab/features/stock/ui/widgets/produto_list_item.dart';
 import 'package:controlab/features/auth/application/auth_notifier.dart';
@@ -49,7 +50,9 @@ class HomeScreen extends ConsumerWidget {
                   );
                 }
                 return RefreshIndicator(
-                  onRefresh: () => ref.refresh(stockListProvider.future),
+                  // CORREÇÃO: A forma correta de recarregar é chamando o método no notifier.
+                  onRefresh: () =>
+                      ref.read(stockNotifierProvider.notifier).loadProdutos(),
                   child: ListView.builder(
                     itemCount: produtos.length,
                     itemBuilder: (context, index) {
@@ -71,7 +74,6 @@ class HomeScreen extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          // Navega para a tela de adicionar produto
           context.goNamed(AppRoute.addProduct.name);
         },
         label: const Text('Adicionar'),
