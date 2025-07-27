@@ -50,7 +50,6 @@ class HomeScreen extends ConsumerWidget {
                   );
                 }
                 return RefreshIndicator(
-                  // CORREÇÃO: A forma correta de recarregar é chamando o método no notifier.
                   onRefresh: () =>
                       ref.read(stockNotifierProvider.notifier).loadProdutos(),
                   child: ListView.builder(
@@ -74,7 +73,8 @@ class HomeScreen extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          context.goNamed(AppRoute.addProduct.name);
+          // CORREÇÃO: A rota foi atualizada de 'addProduct' para 'productForm'.
+          context.goNamed(AppRoute.productForm.name);
         },
         label: const Text('Adicionar'),
         icon: const Icon(Icons.add),

@@ -1,5 +1,18 @@
 import 'package:flutter/material.dart';
 
+// Enum para as categorias de produtos
+enum CategoriaProduto {
+  reagentes('Reagentes', Icons.science_outlined),
+  vidraria('Vidraria', Icons.biotech_outlined),
+  equipamentos('Equipamentos', Icons.precision_manufacturing_outlined),
+  consumiveis('Consumíveis', Icons.medication_liquid_outlined),
+  outros('Outros', Icons.category_outlined);
+
+  const CategoriaProduto(this.label, this.icon);
+  final String label;
+  final IconData icon;
+}
+
 // Enum para representar o status do estoque de um produto.
 enum StatusProduto { emEstoque, baixoEstoque, vencido }
 
@@ -68,6 +81,8 @@ class Produto {
   final StatusProduto status;
   final List<MovimentacaoEstoque> historicoUso;
   final List<String> alertas;
+  final CategoriaProduto categoria;
+  final int iconCodePoint; // Armazena o code point do ícone
 
   Produto({
     required this.id,
@@ -79,24 +94,36 @@ class Produto {
     required this.status,
     this.historicoUso = const [],
     this.alertas = const [],
+    required this.categoria,
+    required this.iconCodePoint,
   });
 
+  IconData get icone => IconData(iconCodePoint, fontFamily: 'MaterialIcons');
+
   Produto copyWith({
+    String? nome,
     int? quantidade,
+    String? fornecedor,
+    String? validade,
+    String? lote,
     StatusProduto? status,
     List<MovimentacaoEstoque>? historicoUso,
     List<String>? alertas,
+    CategoriaProduto? categoria,
+    int? iconCodePoint,
   }) {
     return Produto(
       id: id,
-      nome: nome,
+      nome: nome ?? this.nome,
       quantidade: quantidade ?? this.quantidade,
-      fornecedor: fornecedor,
-      validade: validade,
-      lote: lote,
+      fornecedor: fornecedor ?? this.fornecedor,
+      validade: validade ?? this.validade,
+      lote: lote ?? this.lote,
       status: status ?? this.status,
       historicoUso: historicoUso ?? this.historicoUso,
       alertas: alertas ?? this.alertas,
+      categoria: categoria ?? this.categoria,
+      iconCodePoint: iconCodePoint ?? this.iconCodePoint,
     );
   }
 }

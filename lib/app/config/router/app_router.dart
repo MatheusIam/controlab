@@ -6,6 +6,7 @@ import 'package:controlab/features/auth/ui/screens/login_screen.dart';
 import 'package:controlab/features/stock/ui/screens/add_product_screen.dart'; // Importa a nova tela
 import 'package:controlab/features/stock/ui/screens/home_screen.dart';
 import 'package:controlab/features/stock/ui/screens/product_details_screen.dart';
+import 'package:controlab/features/stock/domain/produto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,7 +16,7 @@ enum AppRoute {
   home,
   login,
   productDetails,
-  addProduct, // Nova rota
+  productForm, // Renomeado de addProduct
   settings,
 }
 
@@ -56,12 +57,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                       return ProductDetailsScreen(productId: productId);
                     },
                   ),
-                  // Rota para adicionar produto, aninhada sob a home
+                  // Rota para adicionar/editar produto
                   GoRoute(
-                    path: 'add-product',
-                    name: AppRoute.addProduct.name,
+                    path: 'product-form',
+                    name: AppRoute.productForm.name,
                     parentNavigatorKey: _rootNavigatorKey,
-                    builder: (context, state) => const AddProductScreen(),
+                    builder: (context, state) {
+                      // Passa o produto existente como extra para edição
+                      final produto = state.extra as Produto?;
+                      return AddProductScreen(produto: produto);
+                    },
                   ),
                 ],
               ),

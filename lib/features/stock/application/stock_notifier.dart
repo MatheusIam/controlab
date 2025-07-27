@@ -24,27 +24,31 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
     state = const AsyncValue.loading();
     try {
       await _repository.addProduto(produto);
-      loadProdutos(); // Recarrega a lista
+      await loadProdutos();
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+  
+  Future<void> updateProduct(Produto produto) async {
+    state = const AsyncValue.loading();
+    try {
+      await _repository.updateProduto(produto);
+      await loadProdutos();
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
   }
 
-  Future<void> updateStock(
-    String productId,
-    int quantidade,
-    String responsavel,
-  ) async {
-    try {
+  Future<void> updateStock(String productId, int quantidade, String responsavel) async {
+     try {
       final produto = await _repository.getProdutoById(productId);
       final diferenca = quantidade - produto.quantidade;
 
       if (diferenca == 0) return;
 
-      final tipo = diferenca > 0
-          ? TipoMovimentacao.entrada
-          : TipoMovimentacao.saida;
-
+      final tipo = diferenca > 0 ? TipoMovimentacao.entrada : TipoMovimentacao.saida;
+      
       final novaMovimentacao = MovimentacaoEstoque(
         tipo: tipo,
         quantidade: diferenca.abs(),
@@ -52,8 +56,7 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
         responsavel: responsavel,
       );
 
-      final novoHistorico = List<MovimentacaoEstoque>.from(produto.historicoUso)
-        ..add(novaMovimentacao);
+      final novoHistorico = List<MovimentacaoEstoque>.from(produto.historicoUso)..add(novaMovimentacao);
 
       final produtoAtualizado = produto.copyWith(
         quantidade: quantidade,
@@ -61,7 +64,7 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
       );
 
       await _repository.updateProduto(produtoAtualizado);
-      loadProdutos(); // Recarrega a lista para refletir na UI
+      await loadProdutos();
     } catch (e, st) {
       // Tratar erro
     }
@@ -70,5 +73,5 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
 
 final stockNotifierProvider =
     StateNotifierProvider<StockNotifier, AsyncValue<List<Produto>>>((ref) {
-      return StockNotifier(ref.watch(stockRepositoryProvider));
-    });
+  return StockNotifier(ref.watch(stockRepositoryProvider));
+});

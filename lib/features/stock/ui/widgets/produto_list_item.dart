@@ -16,19 +16,23 @@ class ProdutoListItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final statusInfo = produto.status.displayAttributes;
     final colors = Theme.of(context).colorScheme;
     final user = ref.watch(authNotifierProvider).value;
 
     return Card(
+      elevation: 2,
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(12.0),
           child: Row(
             children: [
-              Icon(Icons.science_outlined, color: colors.primary, size: 40),
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: colors.primary.withOpacity(0.1),
+                child: Icon(produto.icone, color: colors.primary, size: 28),
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -37,44 +41,33 @@ class ProdutoListItem extends ConsumerWidget {
                     Text(
                       produto.nome,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Estoque: ${produto.quantidade}',
+                      'Estoque: ${produto.quantidade} | Cat: ${produto.categoria.label}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey.shade600,
-                      ),
+                            color: Colors.grey.shade600,
+                          ),
                     ),
                   ],
                 ),
               ),
-              // Botões de movimentação rápida
               IconButton(
-                icon: Icon(Icons.remove_circle, color: colors.error),
+                icon: Icon(Icons.remove_circle_outline, color: colors.error, size: 28),
                 onPressed: () {
                   if (produto.quantidade > 0) {
-                    ref
-                        .read(stockNotifierProvider.notifier)
-                        .updateStock(
-                          produto.id,
-                          produto.quantidade - 1,
-                          user?.name ?? 'System',
-                        );
+                     ref.read(stockNotifierProvider.notifier).updateStock(
+                          produto.id, produto.quantidade - 1, user?.name ?? 'System');
                   }
                 },
               ),
               IconButton(
-                icon: Icon(Icons.add_circle, color: colors.primary),
+                icon: Icon(Icons.add_circle_outline, color: colors.primary, size: 28),
                 onPressed: () {
-                  ref
-                      .read(stockNotifierProvider.notifier)
-                      .updateStock(
-                        produto.id,
-                        produto.quantidade + 1,
-                        user?.name ?? 'System',
-                      );
+                   ref.read(stockNotifierProvider.notifier).updateStock(
+                        produto.id, produto.quantidade + 1, user?.name ?? 'System');
                 },
               ),
             ],

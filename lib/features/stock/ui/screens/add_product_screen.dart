@@ -5,7 +5,8 @@ import 'package:controlab/features/stock/application/stock_notifier.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
 
 class AddProductScreen extends ConsumerStatefulWidget {
-  const AddProductScreen({super.key});
+  final Produto? produto; // Produto existente para edição (pode ser nulo)
+  const AddProductScreen({super.key, this.produto});
 
   @override
   ConsumerState<AddProductScreen> createState() => _AddProductScreenState();
@@ -13,11 +14,29 @@ class AddProductScreen extends ConsumerStatefulWidget {
 
 class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _quantityController = TextEditingController();
-  final _supplierController = TextEditingController();
-  final _lotController = TextEditingController();
-  final _expiryDateController = TextEditingController();
+  late final TextEditingController _nameController;
+  late final TextEditingController _quantityController;
+  late final TextEditingController _supplierController;
+  late final TextEditingController _lotController;
+  late final TextEditingController _expiryDateController;
+  
+  CategoriaProduto _selectedCategoria = CategoriaProduto.consumiveis;
+  IconData _selectedIcon = CategoriaProduto.consumiveis.icon;
+  bool get _isEditing => widget.produto != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.produto?.nome ?? '');
+    _quantityController = TextEditingController(text: widget.produto?.quantidade.toString() ?? '');
+    _supplierController = TextEditingController(text: widget.produto?.fornecedor ?? '');
+    _lotController = TextEditingController(text: widget.produto?.lote ?? '');
+    _expiryDateController = TextEditingController(text: widget.produto?.validade ?? '');
+    if (_isEditing) {
+      _selectedCategoria = widget.produto!.categoria;
+      _selectedIcon = widget.produto!.icone;
+    }
+  }
 
   @override
   void dispose() {
@@ -46,32 +65,32 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
-      // Cria o objeto Produto com os dados do formulário.
-      final newProduct = Produto(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        nome: _nameController.text,
-        quantidade: int.parse(_quantityController.text),
-        fornecedor: _supplierController.text,
-        validade: _expiryDateController.text,
-        lote: _lotController.text,
-        // O status inicial é definido como 'emEstoque'.
-        // Lógicas mais complexas (como estoque baixo) podem ser adicionadas no notifier.
-        status: StatusProduto.emEstoque,
-        historicoUso: [],
-        alertas: [],
-      );
-
-      // Chama o método no notifier para adicionar o produto ao estado.
-      ref.read(stockNotifierProvider.notifier).addProduct(newProduct);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Produto adicionado com sucesso!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      // Retorna para a tela anterior após a submissão.
+      final notifier = ref.read(stockNotifierProvider.notifier);
+      if (_isEditing) {
+        final updatedProduct = widget.produto!.copyWith(
+          nome: _nameController.text,
+          quantidade: int.parse(_quantityController.text),
+          fornecedor: _supplierController.text,
+          lote: _lotController.text,
+          validade: _expiryDateController.text,
+          categoria: _selectedCategoria,
+          iconCodePoint: _selectedIcon.codePoint,
+        );
+        notifier.updateProduct(updatedProduct);
+      } else {
+        final newProduct = Produto(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          nome: _nameController.text,
+          quantidade: int.parse(_quantityController.text),
+          fornecedor: _supplierController.text,
+          validade: _expiryDateController.text,
+          lote: _lotController.text,
+          status: StatusProduto.emEstoque,
+          categoria: _selectedCategoria,
+          iconCodePoint: _selectedIcon.codePoint,
+        );
+        notifier.addProduct(newProduct);
+      }
       context.pop();
     }
   }
@@ -79,7 +98,9 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Adicionar Novo Produto')),
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Editar Produto' : 'Adicionar Produto'),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -136,10 +157,35 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                 validator: (value) =>
                     value!.isEmpty ? 'Campo obrigatório' : null,
               ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<CategoriaProduto>(
+                value: _selectedCategoria,
+                decoration: const InputDecoration(labelText: 'Categoria'),
+                items: CategoriaProduto.values.map((categoria) {
+                  return DropdownMenuItem(
+                    value: categoria,
+                    child: Row(
+                      children: [
+                        Icon(categoria.icon, color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 10),
+                        Text(categoria.label),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedCategoria = value;
+                      _selectedIcon = value.icon;
+                    });
+                  }
+                },
+              ),
               const SizedBox(height: 32),
               FilledButton(
                 onPressed: _submitForm,
-                child: const Text('Salvar Produto'),
+                child: Text(_isEditing ? 'Salvar Alterações' : 'Adicionar Produto'),
               ),
             ],
           ),
