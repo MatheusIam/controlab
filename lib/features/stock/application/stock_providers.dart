@@ -15,27 +15,39 @@ final stockListProvider = Provider.autoDispose<AsyncValue<List<Produto>>>((
 // Ele retorna um AsyncValue<Produto> não nulo, que a UI pode usar com .when().
 final productDetailsProvider = Provider.autoDispose
     .family<AsyncValue<Produto>, String>((ref, id) {
-      // Observa o estado do notifier principal.
-      final stockState = ref.watch(stockNotifierProvider);
+  // Observa o estado completo (mantemos por compatibilidade na UI atual).
+  final stockState = ref.watch(stockNotifierProvider);
+  return stockState.when(
+    data: (produtos) {
+      try {
+        final produto = produtos.firstWhere((p) => p.id == id);
+        return AsyncValue.data(produto);
+      } catch (e) {
+        return AsyncValue.error(
+          Exception('Produto com id $id não encontrado.'),
+          StackTrace.current,
+        );
+      }
+    },
+    loading: () => const AsyncValue.loading(),
+    error: (err, stack) => AsyncValue.error(err, stack),
+  );
+});
 
-      // Mapeia o estado da lista para o estado de um único item.
-      return stockState.when(
-        data: (produtos) {
-          try {
-            // Tenta encontrar o produto na lista.
-            final produto = produtos.firstWhere((p) => p.id == id);
-            // Se encontrar, retorna um estado de dados com o produto.
-            return AsyncValue.data(produto);
-          } catch (e) {
-            // Se o produto não for encontrado, retorna um estado de erro claro.
-            return AsyncValue.error(
-              Exception('Produto com id $id não encontrado.'),
-              StackTrace.current,
-            );
-          }
-        },
-        // Propaga os estados de carregamento e erro da lista principal.
-        loading: () => const AsyncValue.loading(),
-        error: (err, stack) => AsyncValue.error(err, stack),
-      );
-    });
+/// Versão ainda mais otimizada que reconstrói apenas quando o produto alvo muda.
+/// A UI teria que lidar com Produto? (null enquanto carrega ou não encontrado)
+final productDetailsProviderOptimized = Provider.autoDispose
+    .family<Produto?, String>((ref, id) {
+  return ref.watch(
+    stockNotifierProvider.select(
+      (asyncList) {
+        final list = asyncList.value;
+        if (list == null) return null;
+        for (final p in list) {
+          if (p.id == id) return p;
+        }
+        return null;
+      },
+    ),
+  );
+});

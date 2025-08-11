@@ -1,4 +1,3 @@
-import 'package:controlab/features/auth/domain/user.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,8 +13,6 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final stockListAsync = ref.watch(stockListProvider);
-    final AsyncValue<User?> authState = ref.watch(authNotifierProvider);
-    final User? user = authState.value;
 
     return Scaffold(
       body: Column(
@@ -23,11 +20,19 @@ class HomeScreen extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(
-              'Olá, ${user?.name ?? 'Usuário'}!',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            child: Consumer(
+              builder: (context, ref, _) {
+                final user = ref.watch(
+                  authNotifierProvider.select((s) => s.value),
+                );
+                return Text(
+                  'Olá, ${user?.name ?? 'Usuário'}!',
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                );
+              },
             ),
           ),
           Padding(

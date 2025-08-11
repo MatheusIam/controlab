@@ -206,17 +206,17 @@ class _InfoCard extends StatelessWidget {
   }
 }
 
-class _MovimentacoesList extends StatelessWidget {
+class _MovimentacoesList extends ConsumerWidget {
   final List<MovimentacaoEstoque> movimentacoes;
   const _MovimentacoesList({required this.movimentacoes});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (movimentacoes.isEmpty) {
       return const Card(
         child: Padding(
           padding: EdgeInsets.all(16.0),
-          child: Center(child: Text('Nenhuma movimentação registrada.')),
+          child: Center(child: Text('Nenhuma movimentação registrado.')),
         ),
       );
     }
@@ -224,31 +224,31 @@ class _MovimentacoesList extends StatelessWidget {
     final sortedMovimentacoes = List<MovimentacaoEstoque>.from(movimentacoes)
       ..sort((a, b) => b.data.compareTo(a.data));
 
-    return Card(
-      child: ListView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: sortedMovimentacoes.length,
-        itemBuilder: (context, index) {
-          final mov = sortedMovimentacoes[index];
-          final isEntrada = mov.tipo == TipoMovimentacao.entrada;
-          final color = isEntrada ? Colors.green.shade700 : Colors.red.shade700;
-          final icon = isEntrada ? Icons.arrow_downward : Icons.arrow_upward;
-          final prefix = isEntrada ? '+' : '-';
-
-          return Consumer(
-            builder: (context, ref, _) {
+    final locationsAsync = ref.watch(locationsListProvider);
+    return locationsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, s) => const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('Erro ao carregar localizações'))),
+      data: (locations) {
+        final locationMap = {for (var l in locations) l.id: l.nome};
+        return Card(
+          child: ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: sortedMovimentacoes.length,
+            itemBuilder: (context, index) {
+              final mov = sortedMovimentacoes[index];
+              final isEntrada = mov.tipo == TipoMovimentacao.entrada;
+              final color = isEntrada ? Colors.green.shade700 : Colors.red.shade700;
+              final icon = isEntrada ? Icons.arrow_downward : Icons.arrow_upward;
+              final prefix = isEntrada ? '+' : '-';
               final nomeLocal = mov.locationId == null || mov.locationId!.isEmpty
                   ? 'N/D'
-                  : (ref.watch(locationByIdProvider(mov.locationId!))?.nome ?? mov.locationId!);
+                  : (locationMap[mov.locationId!] ?? mov.locationId!);
+
               return ListTile(
                 leading: Icon(icon, color: color),
-                title: Text(
-                  '${isEntrada ? 'Entrada' : 'Saída'} por ${mov.responsavel}',
-                ),
-                subtitle: Text(
-                  'Local: $nomeLocal • ${DateFormat('dd/MM/yyyy HH:mm').format(mov.data)}',
-                ),
+                title: Text('${isEntrada ? 'Entrada' : 'Saída'} por ${mov.responsavel}'),
+                subtitle: Text('Local: $nomeLocal • ${DateFormat('dd/MM/yyyy HH:mm').format(mov.data)}'),
                 trailing: Text(
                   '$prefix${mov.quantidade}',
                   style: TextStyle(
@@ -259,9 +259,9 @@ class _MovimentacoesList extends StatelessWidget {
                 ),
               );
             },
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -281,61 +281,77 @@ class _StockDistributionCard extends ConsumerWidget {
       );
     }
 
-    final tiles = quantidadesPorLocal.entries.map((e) {
-      final locId = e.key;
-      final qtd = e.value;
-      final nomeLocal = ref.watch(locationByIdProvider(locId))?.nome ?? 'ID: $locId';
-      return ListTile(
-        leading: const Icon(Icons.location_on_outlined),
-        title: Text(
-          nomeLocal,
-          style: const TextStyle(fontWeight: FontWeight.w500),
+    final locationsAsync = ref.watch(locationsListProvider);
+    return locationsAsync.when(
+      loading: () => const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Center(child: CircularProgressIndicator()),
         ),
-        trailing: Text('$qtd un.', style: Theme.of(context).textTheme.bodyLarge),
-        dense: true,
-      );
-    }).toList();
-
-    final total = quantidadesPorLocal.values.fold<int>(0, (p, c) => p + c);
-
-    return Card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Estoque por Localização',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Color.alphaBlend(
-                      Theme.of(context).colorScheme.primary.withAlpha(26),
-                      Colors.white,
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    'Total: $total',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ...tiles,
-          const SizedBox(height: 8),
-        ],
       ),
+      error: (e, s) => const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text('Erro ao carregar localizações'),
+        ),
+      ),
+      data: (locations) {
+        final locationMap = {for (var l in locations) l.id: l.nome};
+        final tiles = quantidadesPorLocal.entries.map((e) {
+          final locId = e.key;
+          final qtd = e.value;
+            final nomeLocal = locationMap[locId] ?? 'ID: $locId';
+          return ListTile(
+            leading: const Icon(Icons.location_on_outlined),
+            title: Text(
+              nomeLocal,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+            trailing: Text('$qtd un.', style: Theme.of(context).textTheme.bodyLarge),
+            dense: true,
+          );
+        }).toList();
+        final total = quantidadesPorLocal.values.fold<int>(0, (p, c) => p + c);
+        return Card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Estoque por Localização',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Color.alphaBlend(
+                          Theme.of(context).colorScheme.primary.withAlpha(26),
+                          Colors.white,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        'Total: $total',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ...tiles,
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
     );
   }
 }

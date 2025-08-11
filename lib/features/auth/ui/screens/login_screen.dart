@@ -8,7 +8,6 @@ class LoginScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authNotifierProvider);
     final colors = Theme.of(context).colorScheme;
 
     ref.listen<AsyncValue<User?>>(authNotifierProvider, (_, state) {
@@ -82,8 +81,16 @@ class LoginScreen extends ConsumerWidget {
                   children: [
                     const _LoginForm(),
                     const SizedBox(height: 16),
-                    if (authState.isLoading)
-                      const Center(child: CircularProgressIndicator()),
+                    // Progress indicator isolado para evitar rebuild da tela inteira.
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final authState = ref.watch(authNotifierProvider);
+                        if (authState.isLoading) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
                     TextButton(
                       onPressed: () {},
                       child: Text(

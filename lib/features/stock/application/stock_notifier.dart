@@ -21,43 +21,39 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
   }
 
   Future<void> addProduct(Produto produto) async {
-    state = const AsyncValue.loading();
-    try {
+    state = await AsyncValue.guard(() async {
       await _repository.addProduto(produto);
-      await loadProdutos();
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
+      final current = state.value ?? [];
+      return [...current, produto];
+    });
   }
   
   Future<void> updateProduct(Produto produto) async {
-    state = const AsyncValue.loading();
-    try {
+    state = await AsyncValue.guard(() async {
       await _repository.updateProduto(produto);
-      await loadProdutos();
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
+      final current = state.value ?? [];
+      return [
+        for (final p in current) if (p.id == produto.id) produto else p,
+      ];
+    });
   }
 
   Future<void> updateStock(String productId, int quantidade, String responsavel) async {
-  try {
+    state = await AsyncValue.guard(() async {
       final produto = await _repository.getProdutoById(productId);
       final totalAtual = produto.quantidadeTotal;
       final diferenca = quantidade - totalAtual;
-      if (diferenca == 0) return;
+      if (diferenca == 0) return state.value ?? [];
 
-      // Ajusta apenas a localização default ou cria se inexistente.
       final mapa = Map<String, int>.from(produto.quantidadesPorLocal);
       final keyAjuste = mapa.containsKey(Produto.defaultLocationId)
           ? Produto.defaultLocationId
           : (mapa.isNotEmpty ? mapa.keys.first : Produto.defaultLocationId);
       final atualLocal = mapa[keyAjuste] ?? 0;
       var novoLocal = atualLocal + diferenca;
-      if (novoLocal < 0) novoLocal = 0; // evita negativos
+      if (novoLocal < 0) novoLocal = 0;
       mapa[keyAjuste] = novoLocal;
       if (mapa[keyAjuste] == 0 && mapa.length > 1) {
-        // se zerou e existem outros locais, pode remover
         mapa.remove(keyAjuste);
       }
 
@@ -76,10 +72,12 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
         historicoUso: novoHistorico,
       );
       await _repository.updateProduto(produtoAtualizado);
-      await loadProdutos();
-    } catch (e) {
-      // Tratar erro futuramente
-    }
+
+      final current = state.value ?? [];
+      return [
+        for (final p in current) if (p.id == produtoAtualizado.id) produtoAtualizado else p,
+      ];
+    });
   }
 
   /// Nova versão considerando localização específica.
@@ -89,12 +87,12 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
     required int novaQuantidadeLocal,
     required String responsavel,
   }) async {
-  try {
+    state = await AsyncValue.guard(() async {
       final produto = await _repository.getProdutoById(productId);
       final mapa = Map<String, int>.from(produto.quantidadesPorLocal);
       final quantidadeAnteriorLocal = mapa[locationId] ?? 0;
       final diferenca = novaQuantidadeLocal - quantidadeAnteriorLocal;
-      if (diferenca == 0) return;
+      if (diferenca == 0) return state.value ?? [];
 
       mapa[locationId] = novaQuantidadeLocal;
 
@@ -104,7 +102,7 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
         quantidade: diferenca.abs(),
         data: DateTime.now(),
         responsavel: responsavel,
-  locationId: locationId,
+        locationId: locationId,
       );
       final novoHistorico = List<MovimentacaoEstoque>.from(produto.historicoUso)..add(novaMovimentacao);
 
@@ -113,10 +111,12 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
         historicoUso: novoHistorico,
       );
       await _repository.updateProduto(produtoAtualizado);
-      await loadProdutos();
-    } catch (_) {
-      // TODO: error handling
-    }
+
+      final current = state.value ?? [];
+      return [
+        for (final p in current) if (p.id == produtoAtualizado.id) produtoAtualizado else p,
+      ];
+    });
   }
 
   /// Transfere quantidade entre duas localizações (origem -> destino) de forma atômica.
@@ -133,11 +133,11 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
   }) async {
     if (quantidade <= 0) return; // nada a fazer
     if (origemLocationId == destinoLocationId) return; // transferência irrelevante
-    try {
+    state = await AsyncValue.guard(() async {
       final produto = await _repository.getProdutoById(productId);
       final mapa = Map<String, int>.from(produto.quantidadesPorLocal);
       final origemAtual = mapa[origemLocationId] ?? 0;
-      if (origemAtual <= 0) return; // nada disponível
+      if (origemAtual <= 0) return state.value ?? [];
       final mover = quantidade > origemAtual ? origemAtual : quantidade;
       final destinoAtual = mapa[destinoLocationId] ?? 0;
 
@@ -172,10 +172,12 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
         historicoUso: novoHistorico,
       );
       await _repository.updateProduto(produtoAtualizado);
-      await loadProdutos();
-    } catch (_) {
-      // TODO: error handling
-    }
+
+      final current = state.value ?? [];
+      return [
+        for (final p in current) if (p.id == produtoAtualizado.id) produtoAtualizado else p,
+      ];
+    });
   }
 }
 
