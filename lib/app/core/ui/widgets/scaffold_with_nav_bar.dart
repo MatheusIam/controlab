@@ -1,4 +1,5 @@
 import 'package:controlab/features/auth/application/auth_notifier.dart';
+import 'package:controlab/features/core/notifications/notification_notifier.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -64,6 +65,19 @@ class ScaffoldWithNavBar extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Controlab'),
         actions: [
+          Consumer(builder: (context, ref, _) {
+            final unread = ref.watch(unreadNotificationsCountProvider);
+            return IconButton(
+              icon: Badge(
+                isLabelVisible: unread > 0,
+                label: Text(unread.toString()),
+                child: const Icon(Icons.notifications_outlined),
+              ),
+              onPressed: () {
+                // TODO: navegar para tela de notificações
+              },
+            );
+          }),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {

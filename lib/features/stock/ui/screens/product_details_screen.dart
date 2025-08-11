@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:controlab/features/stock/application/localizacao_notifier.dart';
 import 'package:controlab/features/stock/application/stock_notifier.dart';
 import 'package:controlab/features/stock/application/cq_notifier.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:controlab/features/stock/domain/registro_cq.dart';
 import 'package:controlab/features/auth/application/auth_notifier.dart';
 
@@ -623,6 +624,7 @@ class _CQHistoryView extends ConsumerWidget {
                 subtitle: Text(
                   'Por: ${r.responsavel}\n${DateFormat('dd/MM/yy HH:mm').format(r.data)}\n${r.observacoes}'.trim(),
                 ),
+                trailing: r.anexoPath != null ? const Icon(Icons.attachment_outlined) : null,
               ),
             );
           },
@@ -643,6 +645,7 @@ class _CQRegistrationFormState extends ConsumerState<_CQRegistrationForm> {
   final _formKey = GlobalKey<FormState>();
   StatusLoteCQ _status = StatusLoteCQ.pendente;
   final _obsController = TextEditingController();
+  String? _anexoPath;
 
   @override
   void dispose() {
@@ -658,6 +661,7 @@ class _CQRegistrationFormState extends ConsumerState<_CQRegistrationForm> {
           responsavel: user?.name ?? 'System',
           status: _status,
           observacoes: _obsController.text,
+          anexoPath: _anexoPath,
         );
     if (!mounted) return;
     if (ok) {
@@ -690,6 +694,29 @@ class _CQRegistrationFormState extends ConsumerState<_CQRegistrationForm> {
               controller: _obsController,
               decoration: const InputDecoration(labelText: 'Observações'),
               maxLines: 3,
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.attachment_outlined),
+                  label: const Text('Anexar Laudo'),
+                  onPressed: () async {
+                    final res = await FilePicker.platform.pickFiles(allowMultiple: false);
+                    if (res != null && res.files.isNotEmpty) {
+                      setState(() => _anexoPath = res.files.single.path);
+                    }
+                  },
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _anexoPath == null ? 'Nenhum arquivo selecionado' : _anexoPath!.split('\\').last.split('/').last,
+                    style: Theme.of(context).textTheme.bodySmall,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             FilledButton.icon(

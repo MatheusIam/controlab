@@ -62,3 +62,8 @@ final authStateChangesProvider = StreamProvider.autoDispose<User?>((ref) {
   final authRepository = ref.watch(authRepositoryProvider);
   return authRepository.getAuthStateChanges();
 });
+
+final currentUserRoleProvider = Provider<UserRole?>((ref) {
+  final user = ref.watch(authNotifierProvider).value;
+  return user?.role;
+});
