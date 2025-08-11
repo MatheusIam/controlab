@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 /// Enum representando o status de Controle de Qualidade (CQ) de um lote.
 enum StatusLoteCQ { aprovado, emQuarentena, reprovado, pendente }
 
@@ -41,4 +43,27 @@ class RegistroCQ {
         observacoes: observacoes ?? this.observacoes,
         anexoPath: anexoPath ?? this.anexoPath,
       );
+}
+
+// UI helpers para exibir status de CQ
+class StatusCQDisplay {
+  final String label;
+  final Color color;
+  final IconData icon;
+  const StatusCQDisplay({required this.label, required this.color, required this.icon});
+}
+
+extension StatusLoteCQDisplayExt on StatusLoteCQ {
+  StatusCQDisplay get display {
+    switch (this) {
+      case StatusLoteCQ.aprovado:
+        return StatusCQDisplay(label: 'Aprovado', color: Colors.green.shade700, icon: Icons.verified_outlined);
+      case StatusLoteCQ.emQuarentena:
+        return StatusCQDisplay(label: 'Quarentena', color: Colors.amber.shade800, icon: Icons.science_outlined);
+      case StatusLoteCQ.reprovado:
+        return StatusCQDisplay(label: 'Reprovado', color: Colors.red.shade700, icon: Icons.gpp_bad_outlined);
+      case StatusLoteCQ.pendente:
+        return StatusCQDisplay(label: 'Pendente', color: Colors.grey.shade600, icon: Icons.hourglass_bottom_outlined);
+    }
+  }
 }

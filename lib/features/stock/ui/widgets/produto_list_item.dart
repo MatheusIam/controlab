@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
 import 'package:controlab/features/stock/application/stock_notifier.dart';
+import 'package:controlab/features/stock/application/cq_notifier.dart';
 import 'package:controlab/features/auth/application/auth_notifier.dart';
+import 'package:controlab/features/stock/domain/registro_cq.dart';
 
 class ProdutoListItem extends ConsumerWidget {
   final Produto produto;
@@ -18,7 +20,9 @@ class ProdutoListItem extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = Theme.of(context).colorScheme;
     final user = ref.watch(authNotifierProvider).value;
-    final produtoStatus = produto.status;
+  final produtoStatus = produto.status;
+  final statusCQAsync = ref.watch(ultimoStatusCQDoLoteProvider(produto.lote));
+  final statusCQ = statusCQAsync.value; // null se ainda carregando
 
     // Estilos dinâmicos conforme hierarquia
     Color cardBackgroundColor = Theme.of(context).cardTheme.color ?? Colors.white;
@@ -26,7 +30,20 @@ class ProdutoListItem extends ConsumerWidget {
     IconData? alertIcon;
     Color? alertIconColor;
 
-  if (produtoStatus == StatusProduto.vencido) {
+    // Prioridade CQ
+  final bool isActionBlocked = statusCQ == StatusLoteCQ.reprovado || statusCQ == StatusLoteCQ.emQuarentena;
+
+  if (statusCQ == StatusLoteCQ.reprovado) {
+      cardBackgroundColor = Colors.red.shade50;
+      borderColor = Colors.red.shade700;
+      alertIcon = Icons.gpp_bad_outlined;
+      alertIconColor = Colors.red.shade700;
+    } else if (statusCQ == StatusLoteCQ.emQuarentena) {
+      cardBackgroundColor = Colors.amber.shade50;
+      borderColor = Colors.amber.shade700;
+      alertIcon = Icons.science_outlined;
+      alertIconColor = Colors.amber.shade800;
+    } else if (produtoStatus == StatusProduto.vencido) {
       cardBackgroundColor = Colors.red.shade50;
       borderColor = Colors.red.shade400;
       alertIcon = Icons.error_outline_rounded;
@@ -89,7 +106,7 @@ class ProdutoListItem extends ConsumerWidget {
               ),
               if (alertIcon != null)
                 Tooltip(
-                  message: _getTooltipMessage(produto),
+                  message: _getTooltipMessage(produto, statusCQ),
                   preferBelow: false,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0),
@@ -97,8 +114,8 @@ class ProdutoListItem extends ConsumerWidget {
                   ),
                 ),
               IconButton(
-                icon: Icon(Icons.remove_circle_outline, color: colors.error, size: 28),
-                onPressed: () {
+                icon: Icon(Icons.remove_circle_outline, color: isActionBlocked ? Colors.grey : colors.error, size: 28),
+                onPressed: isActionBlocked ? null : () {
                   // Ajuste simples: usar localização default para operações rápidas.
                   final defaultLoc = Produto.defaultLocationId;
                   final mapa = Map<String, int>.from(produto.quantidadesPorLocal);
@@ -117,8 +134,8 @@ class ProdutoListItem extends ConsumerWidget {
                 },
               ),
               IconButton(
-                icon: Icon(Icons.add_circle_outline, color: colors.primary, size: 28),
-                onPressed: () {
+                icon: Icon(Icons.add_circle_outline, color: isActionBlocked ? Colors.grey : colors.primary, size: 28),
+                onPressed: isActionBlocked ? null : () {
                   final defaultLoc = Produto.defaultLocationId;
                   final mapa = Map<String, int>.from(produto.quantidadesPorLocal);
                   final atual = mapa[defaultLoc] ?? 0;
@@ -138,17 +155,23 @@ class ProdutoListItem extends ConsumerWidget {
     );
   }
 
-  String _getTooltipMessage(Produto produto) {
+  String _getTooltipMessage(Produto produto, StatusLoteCQ? statusCQ) {
+    if (statusCQ == StatusLoteCQ.reprovado) {
+      return 'Lote ${produto.lote} REPROVADO no CQ. Bloquear uso.';
+    }
+    if (statusCQ == StatusLoteCQ.emQuarentena) {
+      return 'Lote ${produto.lote} em quarentena aguardando liberação.';
+    }
     final produtoStatus = produto.status;
     if (produtoStatus == StatusProduto.vencido) {
       return 'Produto vencido em ${produto.validade}';
     }
-  final total = produto.quantidadeTotal;
-  final bool isEstoqueBaixo = produto.estoqueMinimo != null && total <= produto.estoqueMinimo!;
+    final total = produto.quantidadeTotal;
+    final bool isEstoqueBaixo = produto.estoqueMinimo != null && total <= produto.estoqueMinimo!;
     if (isEstoqueBaixo) {
       return 'Estoque abaixo do mínimo definido (${produto.estoqueMinimo})';
     }
-  final bool isEstoqueAlto = produto.estoqueMaximo != null && total >= produto.estoqueMaximo!;
+    final bool isEstoqueAlto = produto.estoqueMaximo != null && total >= produto.estoqueMaximo!;
     if (isEstoqueAlto) {
       return 'Estoque acima do máximo definido (${produto.estoqueMaximo})';
     }

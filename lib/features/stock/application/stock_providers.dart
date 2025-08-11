@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:controlab/features/stock/application/stock_notifier.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
+import 'package:controlab/features/stock/application/cq_notifier.dart';
 
 // Este provider simplesmente expõe o estado do StateNotifier.
 // A UI irá observá-lo para obter a lista de produtos.
@@ -68,4 +69,27 @@ final productByIdProvider = Provider.autoDispose.family<Produto?, String>((ref, 
       },
     ),
   );
+});
+
+/// Lista filtrada considerando estado interno do StockNotifier e status CQ.
+final filteredStockListProvider = Provider.autoDispose<AsyncValue<List<Produto>>>((ref) {
+  final stockState = ref.watch(stockNotifierProvider);
+  return stockState.whenData((produtos) {
+    final filter = ref.read(stockNotifierProvider.notifier).filterState;
+    if (filter.searchTerm.isEmpty && filter.categoria == null && filter.statusCQ == null) {
+      return produtos;
+    }
+    return produtos.where((p) {
+      final termOk = filter.searchTerm.isEmpty || p.nome.toLowerCase().contains(filter.searchTerm) || p.lote.toLowerCase().contains(filter.searchTerm);
+      if (!termOk) return false;
+      final catOk = filter.categoria == null || p.categoria == filter.categoria;
+      if (!catOk) return false;
+      if (filter.statusCQ != null) {
+        final statusAsync = ref.watch(ultimoStatusCQDoLoteProvider(p.lote));
+        final statusValue = statusAsync.asData?.value;
+        if (statusValue != filter.statusCQ) return false;
+      }
+      return true;
+    }).toList();
+  });
 });

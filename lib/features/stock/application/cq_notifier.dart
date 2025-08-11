@@ -30,7 +30,7 @@ class CQNotifier extends StateNotifier<CQState> {
     }
   }
 
-  Future<void> adicionarRegistro({
+  Future<bool> adicionarRegistro({
     required String lote,
     required String responsavel,
     required StatusLoteCQ status,
@@ -56,8 +56,10 @@ class CQNotifier extends StateNotifier<CQState> {
         registros: AsyncValue.data(atualizados),
         operacao: const AsyncValue.data(null),
       );
+      return true;
     } catch (e, st) {
       state = state.copyWith(operacao: AsyncValue.error(e, st));
+      return false;
     }
   }
 }
@@ -72,4 +74,10 @@ final ultimoStatusCQDoLoteProvider = FutureProvider.family<StatusLoteCQ?, String
   final repo = ref.watch(cqRepositoryProvider);
   final registro = await repo.getUltimoRegistroDoLote(lote);
   return registro?.status;
+});
+
+// Expor histórico de registros (lista) diretamente como AsyncValue para facilitar consumo na UI
+final cqHistoryProvider = Provider.family<AsyncValue<List<RegistroCQ>>, String>((ref, productId) {
+  final state = ref.watch(cqNotifierProvider(productId));
+  return state.registros;
 });

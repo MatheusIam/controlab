@@ -2,9 +2,38 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:controlab/features/stock/domain/i_stock_repository.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
 import 'package:controlab/features/stock/data/stock_repository_impl.dart';
+import 'package:controlab/features/stock/domain/registro_cq.dart';
+
+// Estado de filtros aplicado à lista de produtos
+class StockFilterState {
+  final String searchTerm;
+  final CategoriaProduto? categoria;
+  final StatusLoteCQ? statusCQ;
+  const StockFilterState({
+    this.searchTerm = '',
+    this.categoria,
+    this.statusCQ,
+  });
+
+  StockFilterState copyWith({
+    String? searchTerm,
+    CategoriaProduto? categoria,
+    StatusLoteCQ? statusCQ,
+    bool resetCategoria = false,
+    bool resetStatus = false,
+  }) {
+    return StockFilterState(
+      searchTerm: searchTerm ?? this.searchTerm,
+      categoria: resetCategoria ? null : (categoria ?? this.categoria),
+      statusCQ: resetStatus ? null : (statusCQ ?? this.statusCQ),
+    );
+  }
+}
 
 class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
   final IStockRepository _repository;
+  StockFilterState _filterState = const StockFilterState();
+  StockFilterState get filterState => _filterState;
 
   StockNotifier(this._repository) : super(const AsyncValue.loading()) {
     loadProdutos();
@@ -18,6 +47,25 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
+  }
+
+  // ----------------- Filtro / Busca -----------------
+  void setSearchTerm(String term) {
+    final normalized = term.trim().toLowerCase();
+    // Não altera lista, apenas estado derivado será filtrado
+    _filterState = _filterState.copyWith(searchTerm: normalized);
+    // Força rebuild para derivations usando select/watch
+    state = state.whenData((value) => value);
+  }
+
+  void applyFilters({CategoriaProduto? categoria, StatusLoteCQ? statusCQ}) {
+    _filterState = _filterState.copyWith(categoria: categoria, statusCQ: statusCQ);
+    state = state.whenData((value) => value);
+  }
+
+  void clearFilters() {
+    _filterState = const StockFilterState();
+    state = state.whenData((value) => value);
   }
 
   Future<void> addProduct(Produto produto) async {

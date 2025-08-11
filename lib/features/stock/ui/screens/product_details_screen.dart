@@ -3,51 +3,113 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:controlab/features/stock/application/stock_providers.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
 import 'package:intl/intl.dart';
-import 'package:controlab/features/stock/application/localizacao_providers.dart';
 import 'package:controlab/features/stock/application/localizacao_notifier.dart';
 import 'package:controlab/features/stock/application/stock_notifier.dart';
+import 'package:controlab/features/stock/application/cq_notifier.dart';
+import 'package:controlab/features/stock/domain/registro_cq.dart';
 import 'package:controlab/features/auth/application/auth_notifier.dart';
 
-class ProductDetailsScreen extends ConsumerWidget {
+class ProductDetailsScreen extends ConsumerStatefulWidget {
   final String productId;
   const ProductDetailsScreen({super.key, required this.productId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Usa um único AsyncValue para evitar dupla escuta + estados inconsistentes temporários.
-    final produtoAsync = ref.watch(productDetailsProvider(productId));
+  ConsumerState<ProductDetailsScreen> createState() => _ProductDetailsScreenState();
+}
+
+class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final produtoAsync = ref.watch(productDetailsProvider(widget.productId));
     return Scaffold(
-      appBar: AppBar(title: const Text('Detalhes do Produto')),
-      body: produtoAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Erro: ${err.toString()}')),
-        data: (produto) => CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.all(16.0),
-              sliver: SliverList.list(
-                children: [
-                  _ProductHeader(produto: produto),
-                  const SizedBox(height: 24),
-                  _StockDistributionCard(quantidadesPorLocal: produto.quantidadesPorLocal),
-                  const SizedBox(height: 24),
-                  _ProductInfoGrid(produto: produto),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Movimentações Recentes',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 16),
-                  _MovimentacoesList(movimentacoes: produto.historicoUso),
-                ],
-              ),
-            ),
+      appBar: AppBar(
+        title: const Text('Detalhes do Produto'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(icon: Icon(Icons.inventory_2_outlined), text: 'Estoque'),
+            Tab(icon: Icon(Icons.playlist_add_check_outlined), text: 'Qualidade'),
           ],
         ),
       ),
+      body: produtoAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text('Erro: ${err.toString()}')),
+        data: (produto) => TabBarView(
+          controller: _tabController,
+            children: [
+              CustomScrollView(
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.all(16.0),
+                    sliver: SliverList.list(
+                      children: [
+                        _ProductHeader(produto: produto),
+                        const SizedBox(height: 24),
+                        _StockDistributionCard(quantidadesPorLocal: produto.quantidadesPorLocal),
+                        const SizedBox(height: 24),
+                        _ProductInfoGrid(produto: produto),
+                        const SizedBox(height: 24),
+                        Text(
+                          'Movimentações Recentes',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 16),
+                        _MovimentacoesList(movimentacoes: produto.historicoUso),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              _CQHistoryView(productId: produto.id, lote: produto.lote),
+            ],
+        ),
+      ),
       floatingActionButton: produtoAsync.maybeWhen(
-        data: (p) => _TransferFab(produto: p),
+        data: (p) => AnimatedBuilder(
+          animation: _tabController,
+          builder: (context, _) {
+            if (_tabController.index == 1) {
+              return FloatingActionButton.extended(
+                icon: const Icon(Icons.playlist_add_check),
+                label: const Text('Registrar CQ'),
+                onPressed: () => _showCQRegistrationForm(context, p),
+              );
+            }
+            return _TransferFab(produto: p);
+          },
+        ),
         orElse: () => null,
+      ),
+    );
+  }
+
+  void _showCQRegistrationForm(BuildContext context, Produto produto) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          left: 16,
+          right: 16,
+          top: 24,
+        ),
+        child: _CQRegistrationForm(produto: produto),
       ),
     );
   }
@@ -454,5 +516,116 @@ class _TransferFab extends ConsumerWidget {
       },
     );
     quantidadeController.dispose();
+  }
+}
+
+// ------------------ CQ UI ------------------
+class _CQHistoryView extends ConsumerWidget {
+  final String productId;
+  final String lote;
+  const _CQHistoryView({required this.productId, required this.lote});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final historyAsync = ref.watch(cqHistoryProvider(productId));
+    return historyAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, s) => Center(child: Text('Erro: $e')),
+      data: (history) {
+        if (history.isEmpty) {
+          return const Center(child: Text('Nenhum registro de qualidade.'));
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.all(12),
+          itemCount: history.length,
+          itemBuilder: (ctx, i) {
+            final r = history[i];
+            final disp = r.status.display;
+            return Card(
+              child: ListTile(
+                leading: CircleAvatar(backgroundColor: disp.color.withOpacity(.15), child: Icon(disp.icon, color: disp.color)),
+                title: Text('${disp.label} • ${r.lote}', style: TextStyle(color: disp.color, fontWeight: FontWeight.bold)),
+                subtitle: Text(
+                  'Por: ${r.responsavel}\n${DateFormat('dd/MM/yy HH:mm').format(r.data)}\n${r.observacoes}'.trim(),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _CQRegistrationForm extends ConsumerStatefulWidget {
+  final Produto produto;
+  const _CQRegistrationForm({required this.produto});
+  @override
+  ConsumerState<_CQRegistrationForm> createState() => _CQRegistrationFormState();
+}
+
+class _CQRegistrationFormState extends ConsumerState<_CQRegistrationForm> {
+  final _formKey = GlobalKey<FormState>();
+  StatusLoteCQ _status = StatusLoteCQ.pendente;
+  final _obsController = TextEditingController();
+
+  @override
+  void dispose() {
+    _obsController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    final user = ref.read(authNotifierProvider).value;
+    final ok = await ref.read(cqNotifierProvider(widget.produto.id).notifier).adicionarRegistro(
+          lote: widget.produto.lote,
+          responsavel: user?.name ?? 'System',
+          status: _status,
+          observacoes: _obsController.text,
+        );
+    if (!mounted) return;
+    if (ok) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Registro CQ salvo'), backgroundColor: Colors.green));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Falha ao salvar'), backgroundColor: Colors.red));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      key: _formKey,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Registrar CQ - Lote ${widget.produto.lote}', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<StatusLoteCQ>(
+              value: _status,
+              decoration: const InputDecoration(labelText: 'Status do Lote'),
+              items: StatusLoteCQ.values.map((s) => DropdownMenuItem(value: s, child: Text(s.name))).toList(),
+              onChanged: (v) => setState(() => _status = v ?? _status),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _obsController,
+              decoration: const InputDecoration(labelText: 'Observações'),
+              maxLines: 3,
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: _submit,
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('Salvar Registro'),
+            ),
+            const SizedBox(height: 32),
+          ],
+        ),
+      ),
+    );
   }
 }
