@@ -9,71 +9,65 @@ class LocationsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locationsAsync = ref.watch(locationsListProvider);
-
-    return locationsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Text('Erro ao carregar localizações:\n$err'),
-        ),
+    return Scaffold(
+      appBar: AppBar(title: const Text('Localizações')),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showLocationDialog(context, ref),
+        child: const Icon(Icons.add),
       ),
-      data: (locations) {
-        if (locations.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Text(
-                'Nenhuma localização cadastrada.\nUse o botão "+" para adicionar a primeira.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge,
+      body: locationsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text('Erro ao carregar localizações:\n$err'),
+          ),
+        ),
+        data: (locations) {
+          if (locations.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Text(
+                  'Nenhuma localização cadastrada.\nToque no "+" para adicionar a primeira.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge,
+                ),
               ),
-            ),
-          );
-        }
-        return Stack(
-          children: [
-            ListView.builder(
-              padding: const EdgeInsets.only(bottom: 90),
-              itemCount: locations.length,
-              itemBuilder: (context, index) {
-                final loc = locations[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: ListTile(
-                    leading: const Icon(Icons.place_outlined),
-                    title: Text(loc.nome),
-                    subtitle: Text('ID: ${loc.id}'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          tooltip: 'Editar',
-                          icon: const Icon(Icons.edit_outlined),
-                          onPressed: () => _showLocationDialog(context, ref, current: loc),
-                        ),
-                        IconButton(
-                          tooltip: 'Remover',
-                          icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
-                          onPressed: () => _confirmDelete(context, ref, loc),
-                        ),
-                      ],
-                    ),
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.only(bottom: 90),
+            itemCount: locations.length,
+            itemBuilder: (context, index) {
+              final loc = locations[index];
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: ListTile(
+                  leading: const Icon(Icons.place_outlined),
+                  title: Text(loc.nome),
+                  subtitle: Text('ID: ${loc.id}'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Editar',
+                        icon: const Icon(Icons.edit_outlined),
+                        onPressed: () => _showLocationDialog(context, ref, current: loc),
+                      ),
+                      IconButton(
+                        tooltip: 'Remover',
+                        icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+                        onPressed: () => _confirmDelete(context, ref, loc),
+                      ),
+                    ],
                   ),
-                );
-              },
-            ),
-            Positioned(
-              right: 16,
-              bottom: 16,
-              child: FloatingActionButton(
-                onPressed: () => _showLocationDialog(context, ref),
-                child: const Icon(Icons.add),
-              ),
-            ),
-          ],
-        );
-      },
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
