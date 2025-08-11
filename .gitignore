@@ -29,9 +29,12 @@ migrate_working_dir/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
+/.pub-cache/
+/.pub/
+# Ignore all build directories anywhere (was only root /build/ before)
+build/
+# Explicit Android app build dir (in case tooling rewrites pattern order)
+android/app/build/
 
 # Symbolication related
 app.*.symbols

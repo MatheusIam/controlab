@@ -6,6 +6,7 @@ import 'package:controlab/features/auth/ui/screens/login_screen.dart';
 import 'package:controlab/features/stock/ui/screens/add_product_screen.dart'; // Importa a nova tela
 import 'package:controlab/features/stock/ui/screens/home_screen.dart';
 import 'package:controlab/features/stock/ui/screens/product_details_screen.dart';
+import 'package:controlab/features/stock/ui/screens/locations_screen.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -78,8 +79,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/settings',
                 name: AppRoute.settings.name,
-                builder: (context, state) =>
-                    const Center(child: Text('Tela de Configurações')),
+                builder: (context, state) => const LocationsScreen(),
               ),
             ],
           ),

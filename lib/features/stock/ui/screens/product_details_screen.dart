@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:controlab/features/stock/application/stock_providers.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
 import 'package:intl/intl.dart';
+import 'package:controlab/features/stock/application/localizacao_providers.dart';
 
 class ProductDetailsScreen extends ConsumerWidget {
   final String productId;
@@ -226,20 +227,29 @@ class _MovimentacoesList extends StatelessWidget {
           final icon = isEntrada ? Icons.arrow_downward : Icons.arrow_upward;
           final prefix = isEntrada ? '+' : '-';
 
-          return ListTile(
-            leading: Icon(icon, color: color),
-            title: Text(
-              '${isEntrada ? 'Entrada' : 'Saída'} por ${mov.responsavel}',
-            ),
-            subtitle: Text(DateFormat('dd/MM/yyyy HH:mm').format(mov.data)),
-            trailing: Text(
-              '$prefix${mov.quantidade}',
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
+          return Consumer(
+            builder: (context, ref, _) {
+              final nomeLocal = mov.locationId == null || mov.locationId!.isEmpty
+                  ? 'N/D'
+                  : (ref.watch(locationByIdProvider(mov.locationId!))?.nome ?? mov.locationId!);
+              return ListTile(
+                leading: Icon(icon, color: color),
+                title: Text(
+                  '${isEntrada ? 'Entrada' : 'Saída'} por ${mov.responsavel}',
+                ),
+                subtitle: Text(
+                  'Local: $nomeLocal • ${DateFormat('dd/MM/yyyy HH:mm').format(mov.data)}',
+                ),
+                trailing: Text(
+                  '$prefix${mov.quantidade}',
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              );
+            },
           );
         },
       ),

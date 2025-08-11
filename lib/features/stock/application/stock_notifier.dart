@@ -69,6 +69,43 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
       // Tratar erro
     }
   }
+
+  /// Nova versão considerando localização específica.
+  Future<void> updateStockAtLocation({
+    required String productId,
+    required String locationId,
+    required int novaQuantidadeLocal,
+    required String responsavel,
+  }) async {
+    try {
+      final produto = await _repository.getProdutoById(productId);
+      final mapa = Map<String, int>.from(produto.quantidadesPorLocal);
+      final quantidadeAnteriorLocal = mapa[locationId] ?? 0;
+      final diferenca = novaQuantidadeLocal - quantidadeAnteriorLocal;
+      if (diferenca == 0) return;
+
+      mapa[locationId] = novaQuantidadeLocal;
+
+      final tipo = diferenca > 0 ? TipoMovimentacao.entrada : TipoMovimentacao.saida;
+      final novaMovimentacao = MovimentacaoEstoque(
+        tipo: tipo,
+        quantidade: diferenca.abs(),
+        data: DateTime.now(),
+        responsavel: responsavel,
+  locationId: locationId,
+      );
+      final novoHistorico = List<MovimentacaoEstoque>.from(produto.historicoUso)..add(novaMovimentacao);
+
+      final produtoAtualizado = produto.copyWith(
+        quantidadesPorLocal: mapa,
+        historicoUso: novoHistorico,
+      );
+      await _repository.updateProduto(produtoAtualizado);
+      await loadProdutos();
+    } catch (_) {
+      // TODO: log / error handling
+    }
+  }
 }
 
 final stockNotifierProvider =

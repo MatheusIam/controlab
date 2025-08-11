@@ -15,6 +15,7 @@ dependencies:
   # Adicionada dependência para gráficos
   fl_chart: ^0.68.0
   intl: ^0.20.2
+  uuid: ^4.5.0
 
 dev_dependencies:
   flutter_test:

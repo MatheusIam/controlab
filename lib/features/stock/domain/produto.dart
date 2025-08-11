@@ -62,19 +62,24 @@ class MovimentacaoEstoque {
   final int quantidade;
   final DateTime data;
   final String responsavel; // Nome do usuário que fez a movimentação
+  final String? locationId; // Localização onde ocorreu a movimentação (opcional para compatibilidade)
 
   MovimentacaoEstoque({
     required this.tipo,
     required this.quantidade,
     required this.data,
     required this.responsavel,
+    this.locationId,
   });
 }
 
 class Produto {
+  // Identificador padrão usado para preencher estoque quando ainda não há granularidade de local.
+  static const String defaultLocationId = '_global';
   final String id;
   final String nome;
-  final int quantidade;
+  // Novo modelo: estoques distribuídos por local de armazenamento.
+  final Map<String, int> quantidadesPorLocal;
   final String fornecedor;
   final String validade;
   final String lote;
@@ -88,7 +93,8 @@ class Produto {
   Produto({
     required this.id,
     required this.nome,
-    required this.quantidade,
+    Map<String, int>? quantidadesPorLocal,
+    int? quantidade, // Compatibilidade temporária (será removido futuramente)
     required this.fornecedor,
     required this.validade,
     required this.lote,
@@ -96,17 +102,28 @@ class Produto {
     this.alertas = const [],
     required this.categoria,
     required this.iconCodePoint,
-  this.estoqueMinimo,
-  this.estoqueMaximo,
-  });
+    this.estoqueMinimo,
+    this.estoqueMaximo,
+  }) : quantidadesPorLocal = quantidadesPorLocal ?? (quantidade != null ? {defaultLocationId: quantidade} : const {});
 
   IconData get icone => IconData(iconCodePoint, fontFamily: 'MaterialIcons');
-  // Sentinel para distinguir parâmetro omitido de parâmetro passado como null
+
+  /// Quantidade total agregada somando todas as localizações.
+  int get quantidadeTotal => quantidadesPorLocal.isEmpty
+      ? 0
+      : quantidadesPorLocal.values.fold(0, (acc, v) => acc + v);
+
+  /// Getter legado para manter código existente funcional. Use quantidadeTotal.
+  @Deprecated('Use quantidadeTotal ao invés de quantidade. Este getter será removido após a migração de UI/Repos.')
+  int get quantidade => quantidadeTotal;
+  // Sentinel para distinguir parâmetros omitidos.
   static const Object _sentinel = Object();
 
   Produto copyWith({
     String? nome,
-    int? quantidade,
+    // Novo: sobrescreve todo o mapa de quantidades por local
+    Map<String, int>? quantidadesPorLocal,
+    int? quantidade, // Atalho de compatibilidade: sobrescreve usando defaultLocationId
     String? fornecedor,
     String? validade,
     String? lote,
@@ -117,10 +134,19 @@ class Produto {
     Object? estoqueMinimo = _sentinel,
     Object? estoqueMaximo = _sentinel,
   }) {
+    Map<String, int> resolvedMap;
+    if (quantidadesPorLocal != null) {
+      resolvedMap = Map<String, int>.from(quantidadesPorLocal);
+    } else if (quantidade != null) {
+      resolvedMap = {defaultLocationId: quantidade};
+    } else {
+      resolvedMap = this.quantidadesPorLocal;
+    }
+
     return Produto(
       id: id,
       nome: nome ?? this.nome,
-      quantidade: quantidade ?? this.quantidade,
+      quantidadesPorLocal: resolvedMap,
       fornecedor: fornecedor ?? this.fornecedor,
       validade: validade ?? this.validade,
       lote: lote ?? this.lote,
@@ -154,7 +180,7 @@ class Produto {
     }
 
     // 2. Verifica estoque mínimo
-    if (estoqueMinimo != null && quantidade <= estoqueMinimo!) {
+  if (estoqueMinimo != null && quantidadeTotal <= estoqueMinimo!) {
       return StatusProduto.baixoEstoque;
     }
 
