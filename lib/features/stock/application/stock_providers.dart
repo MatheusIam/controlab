@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:controlab/features/stock/application/stock_notifier.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
 import 'package:controlab/features/stock/application/cq_notifier.dart';
+import 'package:controlab/features/stock/domain/registro_cq.dart';
 
 // Este provider simplesmente expõe o estado do StateNotifier.
 // A UI irá observá-lo para obter a lista de produtos.
@@ -92,4 +93,38 @@ final filteredStockListProvider = Provider.autoDispose<AsyncValue<List<Produto>>
       return true;
     }).toList();
   });
+});
+
+class DashboardStats {
+  final int totalProdutos;
+  final int itensEstoqueBaixo;
+  final int lotesReprovados;
+  final int lotesEmQuarentena;
+  const DashboardStats({
+    required this.totalProdutos,
+    required this.itensEstoqueBaixo,
+    required this.lotesReprovados,
+    required this.lotesEmQuarentena,
+  });
+}
+
+final dashboardStatsProvider = Provider.autoDispose<DashboardStats>((ref) {
+  final stockState = ref.watch(stockNotifierProvider);
+  final produtos = stockState.value ?? [];
+  int baixo = 0;
+  final lotesReprovadosSet = <String>{};
+  final lotesQuarentenaSet = <String>{};
+  for (final p in produtos) {
+    if (p.estoqueMinimo != null && p.quantidadeTotal <= p.estoqueMinimo!) baixo++;
+    final statusAsync = ref.watch(ultimoStatusCQDoLoteProvider(p.lote));
+    final st = statusAsync.asData?.value;
+    if (st == StatusLoteCQ.reprovado) lotesReprovadosSet.add(p.lote);
+    if (st == StatusLoteCQ.emQuarentena) lotesQuarentenaSet.add(p.lote);
+  }
+  return DashboardStats(
+    totalProdutos: produtos.length,
+    itensEstoqueBaixo: baixo,
+    lotesReprovados: lotesReprovadosSet.length,
+    lotesEmQuarentena: lotesQuarentenaSet.length,
+  );
 });

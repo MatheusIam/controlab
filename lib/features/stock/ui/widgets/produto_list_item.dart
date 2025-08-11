@@ -101,6 +101,33 @@ class ProdutoListItem extends ConsumerWidget {
                             color: Colors.grey.shade600,
                           ),
                     ),
+                    if (statusCQ != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Chip(
+                            visualDensity: VisualDensity.compact,
+                            backgroundColor: statusCQ == StatusLoteCQ.reprovado
+                                ? Colors.red.shade100
+                                : statusCQ == StatusLoteCQ.emQuarentena
+                                    ? Colors.amber.shade100
+                                    : Colors.green.shade100,
+                            label: Text(
+                              statusCQ.name.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: statusCQ == StatusLoteCQ.reprovado
+                                    ? Colors.red.shade700
+                                    : statusCQ == StatusLoteCQ.emQuarentena
+                                        ? Colors.amber.shade800
+                                        : Colors.green.shade800,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

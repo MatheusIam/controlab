@@ -227,6 +227,43 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
       ];
     });
   }
+
+  /// Ajuste manual direto de uma localização com justificativa obrigatória.
+  Future<void> ajustarEstoqueManualmente({
+    required String productId,
+    required String locationId,
+    required int novaQuantidade,
+    required String responsavel,
+    required String justificativa,
+  }) async {
+    if (novaQuantidade < 0) return;
+    if (justificativa.trim().isEmpty) return;
+    state = await AsyncValue.guard(() async {
+      final produto = await _repository.getProdutoById(productId);
+      final mapa = Map<String, int>.from(produto.quantidadesPorLocal);
+      final antiga = mapa[locationId] ?? 0;
+      if (antiga == novaQuantidade) return state.value ?? [];
+      mapa[locationId] = novaQuantidade;
+      if (mapa[locationId] == 0) {
+        // Mantemos zero para histórico ou removemos? Optar por remover para limpeza.
+        mapa.remove(locationId);
+      }
+      final diff = (novaQuantidade - antiga).abs();
+      final mov = MovimentacaoEstoque(
+        tipo: TipoMovimentacao.ajuste,
+        quantidade: diff,
+        data: DateTime.now(),
+        responsavel: responsavel,
+        locationId: locationId,
+        justificativa: justificativa,
+      );
+      final historico = List<MovimentacaoEstoque>.from(produto.historicoUso)..add(mov);
+      final atualizado = produto.copyWith(quantidadesPorLocal: mapa, historicoUso: historico);
+      await _repository.updateProduto(atualizado);
+      final current = state.value ?? [];
+      return [for (final p in current) if (p.id == atualizado.id) atualizado else p];
+    });
+  }
 }
 
 final stockNotifierProvider =

@@ -55,7 +55,7 @@ extension StatusProdutoExtension on StatusProduto {
   }
 }
 
-enum TipoMovimentacao { entrada, saida }
+enum TipoMovimentacao { entrada, saida, ajuste }
 
 class MovimentacaoEstoque {
   final TipoMovimentacao tipo;
@@ -63,6 +63,7 @@ class MovimentacaoEstoque {
   final DateTime data;
   final String responsavel; // Nome do usuário que fez a movimentação
   final String? locationId; // Localização onde ocorreu a movimentação (opcional para compatibilidade)
+  final String? justificativa; // Justificativa para ajustes manuais
 
   MovimentacaoEstoque({
     required this.tipo,
@@ -70,6 +71,7 @@ class MovimentacaoEstoque {
     required this.data,
     required this.responsavel,
     this.locationId,
+    this.justificativa,
   });
 }
 

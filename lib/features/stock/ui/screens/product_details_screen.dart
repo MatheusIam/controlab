@@ -60,7 +60,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> wit
                       children: [
                         _ProductHeader(produto: produto),
                         const SizedBox(height: 24),
-                        _StockDistributionCard(quantidadesPorLocal: produto.quantidadesPorLocal),
+                        _StockDistributionCard(quantidadesPorLocal: produto.quantidadesPorLocal, productId: produto.id),
                         const SizedBox(height: 24),
                         _ProductInfoGrid(produto: produto),
                         const SizedBox(height: 24),
@@ -306,8 +306,9 @@ class _MovimentacoesList extends ConsumerWidget {
 
               return ListTile(
                 leading: Icon(icon, color: color),
-                title: Text('${isEntrada ? 'Entrada' : 'Saída'} por ${mov.responsavel}'),
-                subtitle: Text('Local: $nomeLocal • ${DateFormat('dd/MM/yyyy HH:mm').format(mov.data)}'),
+        title: Text('${mov.tipo == TipoMovimentacao.ajuste ? 'Ajuste' : isEntrada ? 'Entrada' : 'Saída'} por ${mov.responsavel}'),
+        subtitle: Text('Local: $nomeLocal • ${DateFormat('dd/MM/yyyy HH:mm').format(mov.data)}'
+          + (mov.justificativa != null ? '\nJustificativa: ${mov.justificativa}' : '')),
                 trailing: Text(
                   '$prefix${mov.quantidade}',
                   style: TextStyle(
@@ -327,7 +328,8 @@ class _MovimentacoesList extends ConsumerWidget {
 
 class _StockDistributionCard extends ConsumerWidget {
   final Map<String, int> quantidadesPorLocal;
-  const _StockDistributionCard({required this.quantidadesPorLocal});
+  final String productId;
+  const _StockDistributionCard({required this.quantidadesPorLocal, required this.productId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -359,15 +361,12 @@ class _StockDistributionCard extends ConsumerWidget {
         final tiles = quantidadesPorLocal.entries.map((e) {
           final locId = e.key;
           final qtd = e.value;
-            final nomeLocal = locationMap[locId] ?? 'ID: $locId';
-          return ListTile(
-            leading: const Icon(Icons.location_on_outlined),
-            title: Text(
-              nomeLocal,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-            trailing: Text('$qtd un.', style: Theme.of(context).textTheme.bodyLarge),
-            dense: true,
+          final nomeLocal = locationMap[locId] ?? 'ID: $locId';
+          return _EditableLocationTile(
+            productId: productId,
+            locationId: locId,
+            nomeLocal: nomeLocal,
+            quantidade: qtd,
           );
         }).toList();
         final total = quantidadesPorLocal.values.fold<int>(0, (p, c) => p + c);
@@ -516,6 +515,82 @@ class _TransferFab extends ConsumerWidget {
       },
     );
     quantidadeController.dispose();
+  }
+}
+
+class _EditableLocationTile extends ConsumerWidget {
+  final String productId;
+  final String locationId;
+  final String nomeLocal;
+  final int quantidade;
+  const _EditableLocationTile({required this.productId, required this.locationId, required this.nomeLocal, required this.quantidade});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statusCQAsync = ref.watch(ultimoStatusCQDoLoteProvider(ref.watch(productDetailsProvider(productId)).maybeWhen(data: (p)=> p.lote, orElse: ()=>'')));
+    final bloqueado = statusCQAsync.value == StatusLoteCQ.reprovado || statusCQAsync.value == StatusLoteCQ.emQuarentena;
+    return ListTile(
+      leading: const Icon(Icons.location_on_outlined),
+      title: Text(nomeLocal, style: const TextStyle(fontWeight: FontWeight.w500)),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('$quantidade un.', style: Theme.of(context).textTheme.bodyLarge),
+          IconButton(
+            icon: const Icon(Icons.edit_note_outlined),
+            tooltip: bloqueado ? 'Ações bloqueadas pelo status de CQ' : 'Ajustar quantidade',
+            onPressed: bloqueado ? null : () => _abrirDialog(context, ref),
+          ),
+        ],
+      ),
+      dense: true,
+    );
+  }
+
+  void _abrirDialog(BuildContext context, WidgetRef ref) {
+    final controllerQtd = TextEditingController(text: quantidade.toString());
+    final controllerJust = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Ajustar $nomeLocal'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controllerQtd,
+              decoration: const InputDecoration(labelText: 'Nova quantidade'),
+              keyboardType: TextInputType.number,
+            ),
+            TextField(
+              controller: controllerJust,
+              decoration: const InputDecoration(labelText: 'Justificativa (obrigatória)'),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          FilledButton(
+            onPressed: () async {
+              final nova = int.tryParse(controllerQtd.text.trim());
+              final justificativa = controllerJust.text.trim();
+              if (nova == null || justificativa.isEmpty) return;
+              final user = ref.read(authNotifierProvider).value;
+              await ref.read(stockNotifierProvider.notifier).ajustarEstoqueManualmente(
+                productId: productId,
+                locationId: locationId,
+                novaQuantidade: nova,
+                responsavel: user?.name ?? 'System',
+                justificativa: justificativa,
+              );
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
