@@ -19,6 +19,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   late final TextEditingController _supplierController;
   late final TextEditingController _lotController;
   late final TextEditingController _expiryDateController;
+  late final TextEditingController _minStockController;
+  late final TextEditingController _maxStockController;
   
   CategoriaProduto _selectedCategoria = CategoriaProduto.consumiveis;
   IconData _selectedIcon = CategoriaProduto.consumiveis.icon;
@@ -32,6 +34,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     _supplierController = TextEditingController(text: widget.produto?.fornecedor ?? '');
     _lotController = TextEditingController(text: widget.produto?.lote ?? '');
     _expiryDateController = TextEditingController(text: widget.produto?.validade ?? '');
+  _minStockController = TextEditingController(text: widget.produto?.estoqueMinimo?.toString() ?? '');
+  _maxStockController = TextEditingController(text: widget.produto?.estoqueMaximo?.toString() ?? '');
     if (_isEditing) {
       _selectedCategoria = widget.produto!.categoria;
       _selectedIcon = widget.produto!.icone;
@@ -45,6 +49,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     _supplierController.dispose();
     _lotController.dispose();
     _expiryDateController.dispose();
+  _minStockController.dispose();
+  _maxStockController.dispose();
     super.dispose();
   }
 
@@ -75,6 +81,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
           validade: _expiryDateController.text,
           categoria: _selectedCategoria,
           iconCodePoint: _selectedIcon.codePoint,
+          estoqueMinimo: int.tryParse(_minStockController.text),
+          estoqueMaximo: int.tryParse(_maxStockController.text),
         );
         notifier.updateProduct(updatedProduct);
       } else {
@@ -85,9 +93,10 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
           fornecedor: _supplierController.text,
           validade: _expiryDateController.text,
           lote: _lotController.text,
-          status: StatusProduto.emEstoque,
           categoria: _selectedCategoria,
           iconCodePoint: _selectedIcon.codePoint,
+          estoqueMinimo: int.tryParse(_minStockController.text),
+          estoqueMaximo: int.tryParse(_maxStockController.text),
         );
         notifier.addProduct(newProduct);
       }
@@ -125,6 +134,30 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                   }
                   if (int.tryParse(value) == null) {
                     return 'Por favor, insira um número válido.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _minStockController,
+                decoration: const InputDecoration(labelText: 'Estoque Mínimo (Opcional)'),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value != null && value.isNotEmpty && int.tryParse(value) == null) {
+                    return 'Insira um número válido.';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _maxStockController,
+                decoration: const InputDecoration(labelText: 'Estoque Máximo (Opcional)'),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value != null && value.isNotEmpty && int.tryParse(value) == null) {
+                    return 'Insira um número válido.';
                   }
                   return null;
                 },

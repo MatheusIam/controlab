@@ -78,11 +78,12 @@ class Produto {
   final String fornecedor;
   final String validade;
   final String lote;
-  final StatusProduto status;
   final List<MovimentacaoEstoque> historicoUso;
   final List<String> alertas;
   final CategoriaProduto categoria;
   final int iconCodePoint; // Armazena o code point do ícone
+  final int? estoqueMinimo; // Limite inferior opcional
+  final int? estoqueMaximo; // Limite superior opcional
 
   Produto({
     required this.id,
@@ -91,14 +92,17 @@ class Produto {
     required this.fornecedor,
     required this.validade,
     required this.lote,
-    required this.status,
     this.historicoUso = const [],
     this.alertas = const [],
     required this.categoria,
     required this.iconCodePoint,
+  this.estoqueMinimo,
+  this.estoqueMaximo,
   });
 
   IconData get icone => IconData(iconCodePoint, fontFamily: 'MaterialIcons');
+  // Sentinel para distinguir parâmetro omitido de parâmetro passado como null
+  static const Object _sentinel = Object();
 
   Produto copyWith({
     String? nome,
@@ -106,11 +110,12 @@ class Produto {
     String? fornecedor,
     String? validade,
     String? lote,
-    StatusProduto? status,
     List<MovimentacaoEstoque>? historicoUso,
     List<String>? alertas,
     CategoriaProduto? categoria,
     int? iconCodePoint,
+    Object? estoqueMinimo = _sentinel,
+    Object? estoqueMaximo = _sentinel,
   }) {
     return Produto(
       id: id,
@@ -119,11 +124,41 @@ class Produto {
       fornecedor: fornecedor ?? this.fornecedor,
       validade: validade ?? this.validade,
       lote: lote ?? this.lote,
-      status: status ?? this.status,
       historicoUso: historicoUso ?? this.historicoUso,
       alertas: alertas ?? this.alertas,
       categoria: categoria ?? this.categoria,
       iconCodePoint: iconCodePoint ?? this.iconCodePoint,
+      estoqueMinimo: estoqueMinimo == _sentinel ? this.estoqueMinimo : estoqueMinimo as int?,
+      estoqueMaximo: estoqueMaximo == _sentinel ? this.estoqueMaximo : estoqueMaximo as int?,
     );
+  }
+
+  // Status calculado dinamicamente com base em validade e estoque mínimo
+  StatusProduto get status {
+    // 1. Verifica validade (prioridade alta)
+    try {
+      final parts = validade.split('/');
+      if (parts.length == 3) {
+        final day = int.parse(parts[0]);
+        final month = int.parse(parts[1]);
+        final year = int.parse(parts[2]);
+        final expiryDate = DateTime(year, month, day);
+        final today = DateTime.now();
+        final todayOnly = DateTime(today.year, today.month, today.day);
+        if (expiryDate.isBefore(todayOnly)) {
+          return StatusProduto.vencido;
+        }
+      }
+    } catch (_) {
+      // Silencia erros de parsing; poderia logar se necessário.
+    }
+
+    // 2. Verifica estoque mínimo
+    if (estoqueMinimo != null && quantidade <= estoqueMinimo!) {
+      return StatusProduto.baixoEstoque;
+    }
+
+    // 3. Padrão
+    return StatusProduto.emEstoque;
   }
 }
