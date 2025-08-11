@@ -1,5 +1,6 @@
 import 'package:controlab/features/stock/domain/localizacao.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
+import 'package:controlab/features/stock/domain/registro_cq.dart';
 import 'package:uuid/uuid.dart';
 
 /// Singleton que simula um banco de dados em memória para a aplicação.
@@ -18,6 +19,8 @@ class MockDatabase {
     const Localizacao(id: 'loc-02', nome: 'Almoxarifado Principal'),
     const Localizacao(id: 'loc-03', nome: 'Bancada de Hematologia'),
   ];
+  // Registros de Controle de Qualidade (CQ) por produto/lote
+  final List<RegistroCQ> registrosCQ = [];
 
   // Métodos utilitários
   String generateId() => _uuid.v4();

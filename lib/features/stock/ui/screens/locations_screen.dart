@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:controlab/features/stock/application/localizacao_providers.dart';
+import 'package:controlab/features/stock/application/localizacao_notifier.dart';
 import 'package:controlab/features/stock/domain/localizacao.dart';
 
 class LocationsScreen extends ConsumerWidget {
@@ -8,7 +9,7 @@ class LocationsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final locationsAsync = ref.watch(locationsListProvider);
+  final locationsAsync = ref.watch(localizacaoNotifierProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Localizações')),
       floatingActionButton: FloatingActionButton(
@@ -103,13 +104,12 @@ class LocationsScreen extends ConsumerWidget {
 
   Future<void> _saveLocation(WidgetRef ref, String name, Localizacao? current) async {
     if (name.trim().isEmpty) return;
-    final repo = ref.read(localizacaoRepositoryProvider);
+    final notifier = ref.read(localizacaoNotifierProvider.notifier);
     if (current == null) {
-      await repo.addLocation(name.trim());
+      await notifier.addLocation(name.trim());
     } else {
-      await repo.updateLocation(Localizacao(id: current.id, nome: name.trim()));
+      await notifier.updateLocation(Localizacao(id: current.id, nome: name.trim()));
     }
-    ref.invalidate(locationsListProvider);
     // ignore: use_build_context_synchronously
     Navigator.of(ref.context).maybePop();
   }
@@ -127,9 +127,7 @@ class LocationsScreen extends ConsumerWidget {
           ),
           FilledButton.tonal(
             onPressed: () async {
-              final repo = ref.read(localizacaoRepositoryProvider);
-              await repo.deleteLocation(loc.id);
-              ref.invalidate(locationsListProvider);
+              await ref.read(localizacaoNotifierProvider.notifier).deleteLocation(loc.id);
               // ignore: use_build_context_synchronously
               Navigator.of(ctx).pop();
             },

@@ -5,6 +5,7 @@ import 'package:controlab/features/stock/application/stock_notifier.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
 import 'package:controlab/features/stock/domain/localizacao.dart';
 import 'package:controlab/features/stock/application/localizacao_providers.dart';
+import 'package:controlab/features/stock/application/localizacao_notifier.dart';
 
 class AddProductScreen extends ConsumerStatefulWidget {
   final Produto? produto; // Produto existente para edição (pode ser nulo)
@@ -148,7 +149,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
               if (!_isEditing) ...[
                 Consumer(
                   builder: (context, ref, _) {
-                    final locationsAsync = ref.watch(locationsListProvider);
+                    final locationsAsync = ref.watch(localizacaoNotifierProvider);
                     return locationsAsync.when(
                       loading: () => const Padding(
                         padding: EdgeInsets.symmetric(vertical: 8.0),
@@ -285,7 +286,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
               const SizedBox(height: 32),
               Consumer(
                 builder: (context, ref, _) {
-                  final locationsAsync = ref.watch(locationsListProvider);
+                  final locationsAsync = ref.watch(localizacaoNotifierProvider);
                   final isCreating = !_isEditing;
                   final locationReady = !isCreating || (locationsAsync is AsyncData && _selectedLocation != null);
                   return FilledButton(

@@ -4,6 +4,7 @@ import 'package:controlab/features/stock/application/stock_providers.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
 import 'package:intl/intl.dart';
 import 'package:controlab/features/stock/application/localizacao_providers.dart';
+import 'package:controlab/features/stock/application/localizacao_notifier.dart';
 import 'package:controlab/features/stock/application/stock_notifier.dart';
 import 'package:controlab/features/auth/application/auth_notifier.dart';
 
@@ -13,45 +14,41 @@ class ProductDetailsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-  final stockState = ref.watch(stockNotifierProvider);
-  final produto = ref.watch(productByIdProvider(productId));
-
+    // Usa um único AsyncValue para evitar dupla escuta + estados inconsistentes temporários.
+    final produtoAsync = ref.watch(productDetailsProvider(productId));
     return Scaffold(
       appBar: AppBar(title: const Text('Detalhes do Produto')),
-      // A chamada a .when() agora é segura.
-      body: stockState.when(
+      body: produtoAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Erro: ${err.toString()}')),
-        data: (_) {
-          if (produto == null) {
-            return const Center(child: Text('Produto não encontrado.'));
-          }
-          return CustomScrollView(
-            slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.all(16.0),
-                sliver: SliverList.list(
-                  children: [
-                    _ProductHeader(produto: produto),
-                    const SizedBox(height: 24),
-                    _StockDistributionCard(quantidadesPorLocal: produto.quantidadesPorLocal),
-                    const SizedBox(height: 24),
-                    _ProductInfoGrid(produto: produto),
-                    const SizedBox(height: 24),
-                    Text(
-                      'Movimentações Recentes',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 16),
-                    _MovimentacoesList(movimentacoes: produto.historicoUso),
-                  ],
-                ),
+        data: (produto) => CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.all(16.0),
+              sliver: SliverList.list(
+                children: [
+                  _ProductHeader(produto: produto),
+                  const SizedBox(height: 24),
+                  _StockDistributionCard(quantidadesPorLocal: produto.quantidadesPorLocal),
+                  const SizedBox(height: 24),
+                  _ProductInfoGrid(produto: produto),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Movimentações Recentes',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 16),
+                  _MovimentacoesList(movimentacoes: produto.historicoUso),
+                ],
               ),
-            ],
-          );
-        },
+            ),
+          ],
+        ),
       ),
-      floatingActionButton: produto == null ? null : _TransferFab(produto: produto),
+      floatingActionButton: produtoAsync.maybeWhen(
+        data: (p) => _TransferFab(produto: p),
+        orElse: () => null,
+      ),
     );
   }
 }
@@ -224,7 +221,7 @@ class _MovimentacoesList extends ConsumerWidget {
     final sortedMovimentacoes = List<MovimentacaoEstoque>.from(movimentacoes)
       ..sort((a, b) => b.data.compareTo(a.data));
 
-    final locationsAsync = ref.watch(locationsListProvider);
+  final locationsAsync = ref.watch(localizacaoNotifierProvider);
     return locationsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, s) => const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('Erro ao carregar localizações'))),
@@ -281,7 +278,7 @@ class _StockDistributionCard extends ConsumerWidget {
       );
     }
 
-    final locationsAsync = ref.watch(locationsListProvider);
+  final locationsAsync = ref.watch(localizacaoNotifierProvider);
     return locationsAsync.when(
       loading: () => const Card(
         child: Padding(
@@ -370,7 +367,7 @@ class _TransferFab extends ConsumerWidget {
   }
 
   Future<void> _openTransferDialog(BuildContext context, WidgetRef ref) async {
-    final locationsAsync = ref.read(locationsListProvider);
+  final locationsAsync = ref.read(localizacaoNotifierProvider);
   final user = ref.read(authNotifierProvider).value;
     if (locationsAsync is AsyncLoading) return;
     final locations = locationsAsync.value ?? [];
