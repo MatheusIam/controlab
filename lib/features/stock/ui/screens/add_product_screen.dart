@@ -33,8 +33,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.produto?.nome ?? '');
-  // Durante edição ainda usamos getter legado quantidade (total); criação usará mapa por local
-  _quantityController = TextEditingController(text: widget.produto?.quantidade.toString() ?? '');
+  // Em edição usamos quantidadeTotal explícita.
+  _quantityController = TextEditingController(text: widget.produto?.quantidadeTotal.toString() ?? '');
     _supplierController = TextEditingController(text: widget.produto?.fornecedor ?? '');
     _lotController = TextEditingController(text: widget.produto?.lote ?? '');
     _expiryDateController = TextEditingController(text: widget.produto?.validade ?? '');
@@ -86,8 +86,15 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       if (_isEditing) {
         final updatedProduct = widget.produto!.copyWith(
           nome: _nameController.text,
-          // TODO: futura edição granular por local; por enquanto mantém quantidade total legado.
-          quantidade: int.parse(_quantityController.text),
+          // TODO: futura edição granular por local; por enquanto redistribui tudo na localização default (se existir única)
+          quantidadesPorLocal: () {
+            final novoTotal = int.parse(_quantityController.text);
+            if (widget.produto!.quantidadesPorLocal.length == 1) {
+              final k = widget.produto!.quantidadesPorLocal.keys.first;
+              return {k: novoTotal};
+            }
+            return {Produto.defaultLocationId: novoTotal};
+          }(),
           fornecedor: _supplierController.text,
           lote: _lotController.text,
           validade: _expiryDateController.text,

@@ -26,14 +26,15 @@ class ProdutoListItem extends ConsumerWidget {
     IconData? alertIcon;
     Color? alertIconColor;
 
-    if (produtoStatus == StatusProduto.vencido) {
+  if (produtoStatus == StatusProduto.vencido) {
       cardBackgroundColor = Colors.red.shade50;
       borderColor = Colors.red.shade400;
       alertIcon = Icons.error_outline_rounded;
       alertIconColor = Colors.red.shade700;
     } else {
-      final bool isEstoqueBaixo = produto.estoqueMinimo != null && produto.quantidade <= produto.estoqueMinimo!;
-      final bool isEstoqueAlto = produto.estoqueMaximo != null && produto.quantidade >= produto.estoqueMaximo!;
+  final total = produto.quantidadeTotal;
+  final bool isEstoqueBaixo = produto.estoqueMinimo != null && total <= produto.estoqueMinimo!;
+  final bool isEstoqueAlto = produto.estoqueMaximo != null && total >= produto.estoqueMaximo!;
 
       if (isEstoqueBaixo) {
         borderColor = Colors.orange.shade600;
@@ -62,7 +63,7 @@ class ProdutoListItem extends ConsumerWidget {
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: colors.primary.withOpacity(0.1),
+                backgroundColor: Color.alphaBlend(colors.primary.withAlpha(26), Colors.white),
                 child: Icon(produto.icone, color: colors.primary, size: 28),
               ),
               const SizedBox(width: 16),
@@ -78,7 +79,7 @@ class ProdutoListItem extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Estoque: ${produto.quantidade} | Cat: ${produto.categoria.label}',
+                      'Total: ${produto.quantidadeTotal} | Cat: ${produto.categoria.label}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: Colors.grey.shade600,
                           ),
@@ -98,17 +99,36 @@ class ProdutoListItem extends ConsumerWidget {
               IconButton(
                 icon: Icon(Icons.remove_circle_outline, color: colors.error, size: 28),
                 onPressed: () {
-                  if (produto.quantidade > 0) {
-                     ref.read(stockNotifierProvider.notifier).updateStock(
-                          produto.id, produto.quantidade - 1, user?.name ?? 'System');
+                  // Ajuste simples: usar localização default para operações rápidas.
+                  final defaultLoc = Produto.defaultLocationId;
+                  final mapa = Map<String, int>.from(produto.quantidadesPorLocal);
+                  final atual = mapa[defaultLoc] ?? produto.quantidadeTotal; // fallback se ainda não separado
+                  if (atual > 0) {
+                    final nova = atual - 1;
+                    mapa[defaultLoc] = nova;
+                    if (nova == 0) mapa.remove(defaultLoc);
+                    ref.read(stockNotifierProvider.notifier).updateStockAtLocation(
+                      productId: produto.id,
+                      locationId: defaultLoc,
+                      novaQuantidadeLocal: nova,
+                      responsavel: user?.name ?? 'System',
+                    );
                   }
                 },
               ),
               IconButton(
                 icon: Icon(Icons.add_circle_outline, color: colors.primary, size: 28),
                 onPressed: () {
-                   ref.read(stockNotifierProvider.notifier).updateStock(
-                        produto.id, produto.quantidade + 1, user?.name ?? 'System');
+                  final defaultLoc = Produto.defaultLocationId;
+                  final mapa = Map<String, int>.from(produto.quantidadesPorLocal);
+                  final atual = mapa[defaultLoc] ?? 0;
+                  final nova = atual + 1;
+                  ref.read(stockNotifierProvider.notifier).updateStockAtLocation(
+                    productId: produto.id,
+                    locationId: defaultLoc,
+                    novaQuantidadeLocal: nova,
+                    responsavel: user?.name ?? 'System',
+                  );
                 },
               ),
             ],
@@ -123,11 +143,12 @@ class ProdutoListItem extends ConsumerWidget {
     if (produtoStatus == StatusProduto.vencido) {
       return 'Produto vencido em ${produto.validade}';
     }
-    final bool isEstoqueBaixo = produto.estoqueMinimo != null && produto.quantidade <= produto.estoqueMinimo!;
+  final total = produto.quantidadeTotal;
+  final bool isEstoqueBaixo = produto.estoqueMinimo != null && total <= produto.estoqueMinimo!;
     if (isEstoqueBaixo) {
       return 'Estoque abaixo do mínimo definido (${produto.estoqueMinimo})';
     }
-    final bool isEstoqueAlto = produto.estoqueMaximo != null && produto.quantidade >= produto.estoqueMaximo!;
+  final bool isEstoqueAlto = produto.estoqueMaximo != null && total >= produto.estoqueMaximo!;
     if (isEstoqueAlto) {
       return 'Estoque acima do máximo definido (${produto.estoqueMaximo})';
     }

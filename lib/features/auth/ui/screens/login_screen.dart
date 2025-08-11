@@ -70,7 +70,7 @@ class LoginScreen extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
               decoration: BoxDecoration(
-                color: colors.background,
+                color: colors.surface,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(30),
                   topRight: Radius.circular(30),
@@ -111,7 +111,7 @@ class LoginScreen extends ConsumerWidget {
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         side: BorderSide(
-                          color: colors.primary.withOpacity(0.5),
+                          color: Color.alphaBlend(colors.primary.withAlpha(128), Colors.white),
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),

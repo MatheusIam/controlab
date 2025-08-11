@@ -37,14 +37,13 @@ class MyApp extends ConsumerWidget {
         primary: primaryColor,
         secondary: secondaryColor,
         surface: surfaceColor,
-        background: backgroundColor,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
         onSurface: textColor,
         error: Colors.redAccent,
         brightness: Brightness.light,
       ),
-      scaffoldBackgroundColor: backgroundColor,
+  scaffoldBackgroundColor: backgroundColor,
       textTheme: GoogleFonts.poppinsTextTheme(
         Theme.of(context).textTheme,
       ).apply(bodyColor: textColor, displayColor: textColor),
@@ -82,7 +81,7 @@ class MyApp extends ConsumerWidget {
         ),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: backgroundColor,
+        backgroundColor: surfaceColor,
         foregroundColor: textColor,
         elevation: 0,
         centerTitle: true,
@@ -95,7 +94,7 @@ class MyApp extends ConsumerWidget {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: Colors.white,
-        indicatorColor: accentColor.withOpacity(0.3),
+  indicatorColor: Color.alphaBlend(accentColor.withAlpha(77), Colors.white),
         surfaceTintColor: Colors.white,
         labelTextStyle: WidgetStateProperty.all(
           const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),

@@ -1,4 +1,3 @@
-import 'dart:async';
 
 import 'package:controlab/features/auth/application/auth_notifier.dart';
 import 'package:controlab/features/auth/ui/screens/login_screen.dart';
@@ -21,9 +20,7 @@ enum AppRoute {
 }
 
 final goRouterProvider = Provider<GoRouter>((ref) {
-  final refreshListenable = GoRouterRefreshStream(
-    ref.watch(authStateChangesProvider.stream),
-  );
+  final refreshListenable = GoRouterAuthRefresh(ref);
 
   return GoRouter(
     initialLocation: '/login',
@@ -109,20 +106,13 @@ final _settingsNavigatorKey = GlobalKey<NavigatorState>(
   debugLabel: 'SettingsShell',
 );
 
-class GoRouterRefreshStream extends ChangeNotifier {
-  late final StreamSubscription<dynamic> _subscription;
-
-  GoRouterRefreshStream(Stream<dynamic> stream) {
-    notifyListeners();
-    _subscription = stream.asBroadcastStream().listen(
-      (dynamic _) => notifyListeners(),
-    );
-  }
-
-  @override
-  void dispose() {
-    _subscription.cancel();
-    super.dispose();
+class GoRouterAuthRefresh extends ChangeNotifier {
+  late final ProviderSubscription _sub; // ignore: unused_field
+  GoRouterAuthRefresh(Ref ref) {
+    // Escuta mudanças de auth e notifica router.
+    _sub = ref.listen(authStateChangesProvider, (_, __) {
+      notifyListeners();
+    });
   }
 }
 

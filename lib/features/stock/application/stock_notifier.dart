@@ -43,26 +43,38 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
   Future<void> updateStock(String productId, int quantidade, String responsavel) async {
   try {
       final produto = await _repository.getProdutoById(productId);
-      final diferenca = quantidade - produto.quantidade;
-
+      final totalAtual = produto.quantidadeTotal;
+      final diferenca = quantidade - totalAtual;
       if (diferenca == 0) return;
 
+      // Ajusta apenas a localização default ou cria se inexistente.
+      final mapa = Map<String, int>.from(produto.quantidadesPorLocal);
+      final keyAjuste = mapa.containsKey(Produto.defaultLocationId)
+          ? Produto.defaultLocationId
+          : (mapa.isNotEmpty ? mapa.keys.first : Produto.defaultLocationId);
+      final atualLocal = mapa[keyAjuste] ?? 0;
+      var novoLocal = atualLocal + diferenca;
+      if (novoLocal < 0) novoLocal = 0; // evita negativos
+      mapa[keyAjuste] = novoLocal;
+      if (mapa[keyAjuste] == 0 && mapa.length > 1) {
+        // se zerou e existem outros locais, pode remover
+        mapa.remove(keyAjuste);
+      }
+
       final tipo = diferenca > 0 ? TipoMovimentacao.entrada : TipoMovimentacao.saida;
-      
       final novaMovimentacao = MovimentacaoEstoque(
         tipo: tipo,
         quantidade: diferenca.abs(),
         data: DateTime.now(),
         responsavel: responsavel,
+        locationId: keyAjuste,
       );
-
       final novoHistorico = List<MovimentacaoEstoque>.from(produto.historicoUso)..add(novaMovimentacao);
 
       final produtoAtualizado = produto.copyWith(
-        quantidade: quantidade,
+        quantidadesPorLocal: mapa,
         historicoUso: novoHistorico,
       );
-
       await _repository.updateProduto(produtoAtualizado);
       await loadProdutos();
     } catch (e) {
@@ -95,6 +107,65 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
   locationId: locationId,
       );
       final novoHistorico = List<MovimentacaoEstoque>.from(produto.historicoUso)..add(novaMovimentacao);
+
+      final produtoAtualizado = produto.copyWith(
+        quantidadesPorLocal: mapa,
+        historicoUso: novoHistorico,
+      );
+      await _repository.updateProduto(produtoAtualizado);
+      await loadProdutos();
+    } catch (_) {
+      // TODO: error handling
+    }
+  }
+
+  /// Transfere quantidade entre duas localizações (origem -> destino) de forma atômica.
+  /// Regras:
+  /// - Se origem não tiver a quantidade solicitada, limita à disponível.
+  /// - Remove entradas com zero do mapa após operação.
+  /// - Gera duas movimentações (saída na origem, entrada no destino).
+  Future<void> transferStock({
+    required String productId,
+    required String origemLocationId,
+    required String destinoLocationId,
+    required int quantidade,
+    required String responsavel,
+  }) async {
+    if (quantidade <= 0) return; // nada a fazer
+    if (origemLocationId == destinoLocationId) return; // transferência irrelevante
+    try {
+      final produto = await _repository.getProdutoById(productId);
+      final mapa = Map<String, int>.from(produto.quantidadesPorLocal);
+      final origemAtual = mapa[origemLocationId] ?? 0;
+      if (origemAtual <= 0) return; // nada disponível
+      final mover = quantidade > origemAtual ? origemAtual : quantidade;
+      final destinoAtual = mapa[destinoLocationId] ?? 0;
+
+      mapa[origemLocationId] = origemAtual - mover;
+      mapa[destinoLocationId] = destinoAtual + mover;
+      if (mapa[origemLocationId] == 0) {
+        mapa.remove(origemLocationId);
+      }
+
+      final now = DateTime.now();
+      final movSaida = MovimentacaoEstoque(
+        tipo: TipoMovimentacao.saida,
+        quantidade: mover,
+        data: now,
+        responsavel: responsavel,
+        locationId: origemLocationId,
+      );
+      final movEntrada = MovimentacaoEstoque(
+        tipo: TipoMovimentacao.entrada,
+        quantidade: mover,
+        data: now,
+        responsavel: responsavel,
+        locationId: destinoLocationId,
+      );
+
+      final novoHistorico = List<MovimentacaoEstoque>.from(produto.historicoUso)
+        ..add(movSaida)
+        ..add(movEntrada);
 
       final produtoAtualizado = produto.copyWith(
         quantidadesPorLocal: mapa,

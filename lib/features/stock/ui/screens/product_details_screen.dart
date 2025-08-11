@@ -4,6 +4,8 @@ import 'package:controlab/features/stock/application/stock_providers.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
 import 'package:intl/intl.dart';
 import 'package:controlab/features/stock/application/localizacao_providers.dart';
+import 'package:controlab/features/stock/application/stock_notifier.dart';
+import 'package:controlab/features/auth/application/auth_notifier.dart';
 
 class ProductDetailsScreen extends ConsumerWidget {
   final String productId;
@@ -45,6 +47,10 @@ class ProductDetailsScreen extends ConsumerWidget {
             ),
           );
         },
+      ),
+      floatingActionButton: productAsync.maybeWhen(
+        data: (produto) => _TransferFab(produto: produto),
+        orElse: () => null,
       ),
     );
   }
@@ -119,8 +125,8 @@ class _ProductInfoGrid extends StatelessWidget {
             Expanded(
               child: _InfoCard(
                 icon: Icons.inventory_2_outlined,
-                label: 'Quantidade',
-                value: '${produto.quantidade} un.',
+                label: 'Quantidade Total',
+                value: '${produto.quantidadeTotal} un.',
               ),
             ),
             const SizedBox(width: 16),
@@ -309,7 +315,10 @@ class _StockDistributionCard extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    color: Color.alphaBlend(
+                      Theme.of(context).colorScheme.primary.withAlpha(26),
+                      Colors.white,
+                    ),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
@@ -328,5 +337,109 @@ class _StockDistributionCard extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+class _TransferFab extends ConsumerWidget {
+  final Produto produto;
+  const _TransferFab({required this.produto});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return FloatingActionButton.extended(
+      icon: const Icon(Icons.swap_horiz),
+      label: const Text('Transferir'),
+      onPressed: () => _openTransferDialog(context, ref),
+    );
+  }
+
+  Future<void> _openTransferDialog(BuildContext context, WidgetRef ref) async {
+    final locationsAsync = ref.read(locationsListProvider);
+  final user = ref.read(authNotifierProvider).value;
+    if (locationsAsync is AsyncLoading) return;
+    final locations = locationsAsync.value ?? [];
+    if (locations.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Necessário ao menos duas localizações para transferir.')),
+      );
+      return;
+    }
+
+    String? origemId;
+    String? destinoId;
+    final quantidadeController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Transferir Estoque'),
+          content: StatefulBuilder(
+            builder: (ctx, setState) {
+              final origemQtd = origemId == null ? 0 : (produto.quantidadesPorLocal[origemId] ?? 0);
+              final podeConfirmar = origemId != null && destinoId != null && origemId != destinoId && (int.tryParse(quantidadeController.text) ?? 0) > 0;
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: 'Origem'),
+                      value: origemId,
+                      items: locations.map((l) => DropdownMenuItem(value: l.id, child: Text(l.nome))).toList(),
+                      onChanged: (v) => setState(() { origemId = v; }),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: 'Destino'),
+                      value: destinoId,
+                      items: locations.map((l) => DropdownMenuItem(value: l.id, child: Text(l.nome))).toList(),
+                      onChanged: (v) => setState(() { destinoId = v; }),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: quantidadeController,
+                      decoration: InputDecoration(
+                        labelText: 'Quantidade (máx $origemQtd)',
+                      ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Disponível na origem: $origemQtd', style: Theme.of(context).textTheme.bodySmall),
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.check),
+                      label: const Text('Confirmar Transferência'),
+                      onPressed: podeConfirmar ? () async {
+                        final qtd = int.tryParse(quantidadeController.text) ?? 0;
+                        if (qtd <= 0) return;
+                        Navigator.of(ctx).pop(true);
+                        await ref.read(stockNotifierProvider.notifier).transferStock(
+                          productId: produto.id,
+                          origemLocationId: origemId!,
+                          destinoLocationId: destinoId!,
+                          quantidade: qtd,
+                          responsavel: user?.name ?? 'System',
+                        );
+                      } : null,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
+          ],
+        );
+      },
+    );
+    quantidadeController.dispose();
   }
 }
