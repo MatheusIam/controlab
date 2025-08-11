@@ -9,6 +9,7 @@ import 'package:controlab/features/stock/application/cq_notifier.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:controlab/features/stock/domain/registro_cq.dart';
 import 'package:controlab/features/auth/application/auth_notifier.dart';
+import 'package:controlab/features/auth/domain/user.dart';
 
 class ProductDetailsScreen extends ConsumerStatefulWidget {
   final String productId;
@@ -36,6 +37,7 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> wit
   @override
   Widget build(BuildContext context) {
     final produtoAsync = ref.watch(productDetailsProvider(widget.productId));
+  final userRole = ref.watch(currentUserRoleProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detalhes do Produto'),
@@ -85,13 +87,14 @@ class _ProductDetailsScreenState extends ConsumerState<ProductDetailsScreen> wit
           animation: _tabController,
           builder: (context, _) {
             if (_tabController.index == 1) {
+              final canRegisterCQ = userRole == UserRole.administrador || userRole == UserRole.gestorDeQualidade;
               return FloatingActionButton.extended(
                 icon: const Icon(Icons.playlist_add_check),
                 label: const Text('Registrar CQ'),
-                onPressed: () => _showCQRegistrationForm(context, p),
+                onPressed: canRegisterCQ ? () => _showCQRegistrationForm(context, p) : null,
               );
             }
-            return _TransferFab(produto: p);
+            return _TransferFab(produto: p, userRole: userRole);
           },
         ),
         orElse: () => null,
@@ -417,14 +420,18 @@ class _StockDistributionCard extends ConsumerWidget {
 
 class _TransferFab extends ConsumerWidget {
   final Produto produto;
-  const _TransferFab({required this.produto});
+  final UserRole? userRole;
+  const _TransferFab({required this.produto, required this.userRole});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final statusCQAsync = ref.watch(ultimoStatusCQDoLoteProvider(produto.lote));
+    final bloqueadoCQ = statusCQAsync.value == StatusLoteCQ.reprovado || statusCQAsync.value == StatusLoteCQ.emQuarentena;
+    final canTransfer = (userRole == UserRole.administrador || userRole == UserRole.operadorDeEstoque) && !bloqueadoCQ;
     return FloatingActionButton.extended(
       icon: const Icon(Icons.swap_horiz),
       label: const Text('Transferir'),
-      onPressed: () => _openTransferDialog(context, ref),
+      onPressed: canTransfer ? () => _openTransferDialog(context, ref) : null,
     );
   }
 

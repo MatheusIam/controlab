@@ -5,19 +5,16 @@ import 'package:controlab/features/stock/ui/screens/add_product_screen.dart'; //
 import 'package:controlab/features/stock/ui/screens/home_screen.dart';
 import 'package:controlab/features/stock/ui/screens/product_details_screen.dart';
 import 'package:controlab/features/stock/ui/screens/locations_screen.dart';
+import 'package:controlab/features/reports/ui/screens/reports_screen.dart';
+import 'package:controlab/features/core/notifications/ui/notifications_screen.dart';
+import 'package:controlab/features/auth/domain/user.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:controlab/app/core/ui/widgets/scaffold_with_nav_bar.dart';
 
-enum AppRoute {
-  home,
-  login,
-  productDetails,
-  productForm, // Renomeado de addProduct
-  settings,
-}
+enum AppRoute { home, login, productDetails, productForm, settings, reports, notifications }
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final refreshListenable = GoRouterAuthRefresh(ref);
@@ -70,6 +67,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
           StatefulShellBranch(
+            navigatorKey: _reportsNavigatorKey,
+            routes: [
+              GoRoute(
+                path: '/reports',
+                name: AppRoute.reports.name,
+                builder: (context, state) => const ReportsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
             navigatorKey: _settingsNavigatorKey,
             routes: [
               GoRoute(
@@ -81,17 +88,29 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
+      GoRoute(
+        path: '/notifications',
+        name: AppRoute.notifications.name,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const NotificationsScreen(),
+      ),
     ],
     redirect: (BuildContext context, GoRouterState state) {
       final authState = ref.read(authNotifierProvider);
       final isAuthenticated = authState.hasValue && authState.value != null;
       final isLoggingIn = state.matchedLocation == '/login';
+  final role = ref.read(currentUserRoleProvider);
 
       if (!isAuthenticated) {
         return isLoggingIn ? null : '/login';
       }
 
       if (isLoggingIn && isAuthenticated) {
+        return '/home';
+      }
+
+      // Bloqueia acesso à rota de relatórios para não administradores
+      if (state.matchedLocation.startsWith('/reports') && role != UserRole.administrador) {
         return '/home';
       }
 
@@ -102,6 +121,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _homeNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'HomeShell');
+final _reportsNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'ReportsShell');
 final _settingsNavigatorKey = GlobalKey<NavigatorState>(
   debugLabel: 'SettingsShell',
 );

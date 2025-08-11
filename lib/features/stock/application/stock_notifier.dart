@@ -3,6 +3,8 @@ import 'package:controlab/features/stock/domain/i_stock_repository.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
 import 'package:controlab/features/stock/data/stock_repository_impl.dart';
 import 'package:controlab/features/stock/domain/registro_cq.dart';
+import 'package:controlab/features/core/notifications/notification_notifier.dart';
+import 'package:controlab/features/core/notifications/app_notification.dart';
 
 // Estado de filtros aplicado à lista de produtos
 class StockFilterState {
@@ -32,10 +34,11 @@ class StockFilterState {
 
 class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
   final IStockRepository _repository;
+  final Ref ref;
   StockFilterState _filterState = const StockFilterState();
   StockFilterState get filterState => _filterState;
 
-  StockNotifier(this._repository) : super(const AsyncValue.loading()) {
+  StockNotifier(this._repository, this.ref) : super(const AsyncValue.loading()) {
     loadProdutos();
   }
 
@@ -115,11 +118,12 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
       );
       final novoHistorico = List<MovimentacaoEstoque>.from(produto.historicoUso)..add(novaMovimentacao);
 
-      final produtoAtualizado = produto.copyWith(
+  final produtoAtualizado = produto.copyWith(
         quantidadesPorLocal: mapa,
         historicoUso: novoHistorico,
       );
       await _repository.updateProduto(produtoAtualizado);
+  _postUpdateTriggers(produtoAtualizado);
 
       final current = state.value ?? [];
       return [
@@ -154,11 +158,12 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
       );
       final novoHistorico = List<MovimentacaoEstoque>.from(produto.historicoUso)..add(novaMovimentacao);
 
-      final produtoAtualizado = produto.copyWith(
+  final produtoAtualizado = produto.copyWith(
         quantidadesPorLocal: mapa,
         historicoUso: novoHistorico,
       );
       await _repository.updateProduto(produtoAtualizado);
+  _postUpdateTriggers(produtoAtualizado);
 
       final current = state.value ?? [];
       return [
@@ -215,11 +220,12 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
         ..add(movSaida)
         ..add(movEntrada);
 
-      final produtoAtualizado = produto.copyWith(
+  final produtoAtualizado = produto.copyWith(
         quantidadesPorLocal: mapa,
         historicoUso: novoHistorico,
       );
       await _repository.updateProduto(produtoAtualizado);
+  _postUpdateTriggers(produtoAtualizado);
 
       final current = state.value ?? [];
       return [
@@ -260,13 +266,44 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
       final historico = List<MovimentacaoEstoque>.from(produto.historicoUso)..add(mov);
       final atualizado = produto.copyWith(quantidadesPorLocal: mapa, historicoUso: historico);
       await _repository.updateProduto(atualizado);
+      _postUpdateTriggers(atualizado);
       final current = state.value ?? [];
       return [for (final p in current) if (p.id == atualizado.id) atualizado else p];
     });
+  }
+
+  void _postUpdateTriggers(Produto produto) {
+    final notifications = ref.read(notificationNotifierProvider.notifier);
+    // Estoque baixo
+    if (produto.estoqueMinimo != null && produto.quantidadeTotal <= produto.estoqueMinimo!) {
+      notifications.add(
+        titulo: 'Estoque Baixo',
+        mensagem: 'Produto ${produto.nome} atingiu nível crítico (${produto.quantidadeTotal}).',
+        tipo: NotificationType.estoque,
+      );
+    }
+    // Validade próxima (<= 7 dias)
+    try {
+      final parts = produto.validade.split('/');
+      if (parts.length == 3) {
+        final day = int.parse(parts[0]);
+        final month = int.parse(parts[1]);
+        final year = int.parse(parts[2]);
+        final expiry = DateTime(year, month, day);
+        final diff = expiry.difference(DateTime.now());
+        if (diff.inDays >= 0 && diff.inDays <= 7) {
+          notifications.add(
+            titulo: 'Validade Próxima',
+            mensagem: 'Produto ${produto.nome} vence em ${diff.inDays} dia(s).',
+            tipo: NotificationType.validade,
+          );
+        }
+      }
+    } catch (_) {}
   }
 }
 
 final stockNotifierProvider =
     StateNotifierProvider<StockNotifier, AsyncValue<List<Produto>>>((ref) {
-  return StockNotifier(ref.watch(stockRepositoryProvider));
+  return StockNotifier(ref.watch(stockRepositoryProvider), ref);
 });

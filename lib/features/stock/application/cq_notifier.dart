@@ -3,6 +3,8 @@ import 'package:uuid/uuid.dart';
 import 'package:controlab/features/stock/domain/i_cq_repository.dart';
 import 'package:controlab/features/stock/domain/registro_cq.dart';
 import 'package:controlab/features/stock/data/cq_repository_impl.dart';
+import 'package:controlab/features/core/notifications/notification_notifier.dart';
+import 'package:controlab/features/core/notifications/app_notification.dart';
 
 class CQState {
   final AsyncValue<List<RegistroCQ>> registros; // registros do produto focado
@@ -17,7 +19,8 @@ class CQNotifier extends StateNotifier<CQState> {
   final ICQRepository _repo;
   final String produtoId;
   final _uuid = const Uuid();
-  CQNotifier(this._repo, this.produtoId) : super(CQState.initial()) {
+  final Ref ref;
+  CQNotifier(this._repo, this.produtoId, this.ref) : super(CQState.initial()) {
     carregar();
   }
 
@@ -56,6 +59,20 @@ class CQNotifier extends StateNotifier<CQState> {
         registros: AsyncValue.data(atualizados),
         operacao: const AsyncValue.data(null),
       );
+      // Trigger de notificação automática para eventos críticos
+      if (status == StatusLoteCQ.reprovado) {
+        ref.read(notificationNotifierProvider.notifier).add(
+          titulo: 'Lote Reprovado',
+          mensagem: 'O lote $lote do produto $produtoId foi reprovado no CQ.',
+          tipo: NotificationType.qualidade,
+        );
+      } else if (status == StatusLoteCQ.emQuarentena) {
+        ref.read(notificationNotifierProvider.notifier).add(
+          titulo: 'Lote em Quarentena',
+          mensagem: 'O lote $lote do produto $produtoId foi colocado em quarentena.',
+          tipo: NotificationType.qualidade,
+        );
+      }
       return true;
     } catch (e, st) {
       state = state.copyWith(operacao: AsyncValue.error(e, st));
@@ -66,7 +83,7 @@ class CQNotifier extends StateNotifier<CQState> {
 
 final cqNotifierProvider = StateNotifierProvider.family<CQNotifier, CQState, String>((ref, produtoId){
   final repo = ref.watch(cqRepositoryProvider);
-  return CQNotifier(repo, produtoId);
+  return CQNotifier(repo, produtoId, ref);
 });
 
 // Provider derivado: último status CQ do lote do produto

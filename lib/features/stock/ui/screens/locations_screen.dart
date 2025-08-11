@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:controlab/features/stock/application/localizacao_providers.dart';
 import 'package:controlab/features/stock/application/localizacao_notifier.dart';
 import 'package:controlab/features/stock/domain/localizacao.dart';
+import 'package:controlab/features/auth/application/auth_notifier.dart';
+import 'package:controlab/features/auth/domain/user.dart';
 
 class LocationsScreen extends ConsumerWidget {
   const LocationsScreen({super.key});
@@ -10,12 +11,14 @@ class LocationsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
   final locationsAsync = ref.watch(localizacaoNotifierProvider);
+    final role = ref.watch(currentUserRoleProvider);
+    final isAdmin = role == UserRole.administrador;
     return Scaffold(
       appBar: AppBar(title: const Text('Localizações')),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: isAdmin ? FloatingActionButton(
         onPressed: () => _showLocationDialog(context, ref),
         child: const Icon(Icons.add),
-      ),
+      ) : null,
       body: locationsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(
@@ -56,11 +59,12 @@ class LocationsScreen extends ConsumerWidget {
                         icon: const Icon(Icons.edit_outlined),
                         onPressed: () => _showLocationDialog(context, ref, current: loc),
                       ),
-                      IconButton(
-                        tooltip: 'Remover',
-                        icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
-                        onPressed: () => _confirmDelete(context, ref, loc),
-                      ),
+                      if (isAdmin)
+                        IconButton(
+                          tooltip: 'Remover',
+                          icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+                          onPressed: () => _confirmDelete(context, ref, loc),
+                        ),
                     ],
                   ),
                 ),

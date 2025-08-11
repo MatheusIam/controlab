@@ -1,5 +1,6 @@
 import 'package:controlab/features/auth/application/auth_notifier.dart';
 import 'package:controlab/features/core/notifications/notification_notifier.dart';
+import 'package:controlab/features/auth/domain/user.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -35,32 +36,60 @@ class ScaffoldWithNavBar extends ConsumerWidget {
       // O corpo do Scaffold é a tela atual gerenciada pelo navigationShell.
       body: navigationShell,
       // A barra de navegação inferior.
-      bottomNavigationBar: NavigationBar(
-        // O índice atual é controlado pelo navigationShell.
-        selectedIndex: navigationShell.currentIndex,
-        // Destinos da barra de navegação.
-        destinations: const [
-          NavigationDestination(
+      bottomNavigationBar: Consumer(builder: (context, ref, _) {
+        final role = ref.watch(currentUserRoleProvider);
+        final isAdmin = role == UserRole.administrador;
+        final destinations = <NavigationDestination>[
+          const NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
             label: 'Início',
           ),
-          NavigationDestination(
+          if (isAdmin)
+            const NavigationDestination(
+              icon: Icon(Icons.analytics_outlined),
+              selectedIcon: Icon(Icons.analytics),
+              label: 'Relatórios',
+            ),
+          const NavigationDestination(
             icon: Icon(Icons.settings_outlined),
             selectedIcon: Icon(Icons.settings),
             label: 'Configurações',
           ),
-        ],
-        // Ao tocar em um item, o navigationShell é instruído a navegar
-        // para a branch correspondente.
-        onDestinationSelected: (index) {
-          navigationShell.goBranch(
-            index,
-            // Mantém o estado da branch anterior ao navegar.
-            initialLocation: index == navigationShell.currentIndex,
-          );
-        },
-      ),
+        ];
+        // Branch order in router: 0 Home, 1 Reports, 2 Settings (reports always registered).
+        int current = navigationShell.currentIndex;
+        int effectiveIndex;
+        if (isAdmin) {
+          effectiveIndex = current; // direct mapping 0,1,2
+        } else {
+          // Hide reports: map router index 0->0, 2->1. If currently on 1 (reports) fallback to 0.
+            if (current == 0) {
+              effectiveIndex = 0;
+            } else if (current == 2) {
+              effectiveIndex = 1;
+            } else { // current == 1 (reports hidden)
+              effectiveIndex = 0;
+            }
+        }
+        return NavigationBar(
+          selectedIndex: effectiveIndex,
+          destinations: destinations,
+          onDestinationSelected: (tapIndex) {
+            int targetBranchIndex;
+            if (isAdmin) {
+              targetBranchIndex = tapIndex; // 0,1,2
+            } else {
+              // tap 0->home(0), tap1->settings(2)
+              targetBranchIndex = tapIndex == 0 ? 0 : 2;
+            }
+            navigationShell.goBranch(
+              targetBranchIndex,
+              initialLocation: targetBranchIndex == navigationShell.currentIndex,
+            );
+          },
+        );
+      }),
       // Exemplo de AppBar que poderia ter ações de logout.
       appBar: AppBar(
         title: const Text('Controlab'),
@@ -73,9 +102,7 @@ class ScaffoldWithNavBar extends ConsumerWidget {
                 label: Text(unread.toString()),
                 child: const Icon(Icons.notifications_outlined),
               ),
-              onPressed: () {
-                // TODO: navegar para tela de notificações
-              },
+              onPressed: () { context.push('/notifications'); },
             );
           }),
           IconButton(
