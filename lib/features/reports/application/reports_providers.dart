@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:controlab/features/stock/application/stock_notifier.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
+import 'package:controlab/features/stock/application/cq_notifier.dart';
+import 'package:controlab/features/stock/domain/registro_cq.dart';
 
 // Modelo simples para dados de consumo mensal (mockado por enquanto)
 class ConsumptionEntry {
@@ -58,4 +60,55 @@ final expiryReportProvider = Provider.autoDispose<List<ExpiryBucket>>((ref){
     ExpiryBucket('Vencem em 7 dias', sete),
     ExpiryBucket('Vencem em 30 dias', trinta),
   ];
+});
+
+// ---------------- Dashboard Unificado ----------------
+class DashboardStats {
+  final int totalProdutos;
+  final int itensEstoqueBaixo;
+  final int lotesReprovados;
+  final int lotesEmQuarentena;
+  const DashboardStats({
+    required this.totalProdutos,
+    required this.itensEstoqueBaixo,
+    required this.lotesReprovados,
+    required this.lotesEmQuarentena,
+  });
+}
+
+final dashboardStatsProvider = Provider.autoDispose<DashboardStats>((ref) {
+  final produtos = ref.watch(stockNotifierProvider.select((s) => s.value ?? const <Produto>[]));
+  int baixo = 0;
+  final lotesReprovadosSet = <String>{};
+  final lotesQuarentenaSet = <String>{};
+  for (final p in produtos) {
+    if (p.estoqueMinimo != null && p.quantidadeTotal <= p.estoqueMinimo!) baixo++;
+    final statusAsync = ref.watch(ultimoStatusCQDoLoteProvider(p.lote));
+    final st = statusAsync.asData?.value;
+    if (st == StatusLoteCQ.reprovado) lotesReprovadosSet.add(p.lote);
+    if (st == StatusLoteCQ.emQuarentena) lotesQuarentenaSet.add(p.lote);
+  }
+  return DashboardStats(
+    totalProdutos: produtos.length,
+    itensEstoqueBaixo: baixo,
+    lotesReprovados: lotesReprovadosSet.length,
+    lotesEmQuarentena: lotesQuarentenaSet.length,
+  );
+});
+
+// --------------- Não Conformidades (CQ Reprovados) ---------------
+final nonConformanceReportProvider = Provider.autoDispose<List<RegistroCQ>>((ref) {
+  // Estratégia simples: percorre todos os produtos, busca último status por lote e filtra reprovados no histórico.
+  // Em cenário real, ideal agregar via data source.
+  final produtos = ref.watch(stockNotifierProvider.select((s) => s.value ?? const <Produto>[]));
+  final registros = <RegistroCQ>[];
+  for (final p in produtos) {
+    final cqState = ref.watch(cqNotifierProvider(p.id));
+    final hist = cqState.registros.value;
+    if (hist != null) {
+      registros.addAll(hist.where((r) => r.status == StatusLoteCQ.reprovado));
+    }
+  }
+  registros.sort((a,b) => b.data.compareTo(a.data));
+  return registros;
 });

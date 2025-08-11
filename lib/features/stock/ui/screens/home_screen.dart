@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:controlab/features/stock/application/stock_notifier.dart';
 import 'package:controlab/features/stock/application/stock_providers.dart';
+import 'package:controlab/features/reports/application/reports_providers.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
 import 'package:controlab/features/stock/domain/registro_cq.dart';
 import 'package:controlab/features/stock/ui/widgets/produto_list_item.dart';
