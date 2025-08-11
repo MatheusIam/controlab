@@ -28,6 +28,9 @@ class ProductDetailsScreen extends ConsumerWidget {
               children: [
                 _ProductHeader(produto: produto),
                 const SizedBox(height: 24),
+                // Exibe distribuição por localização em vez de quantidade total única
+                _StockDistributionCard(quantidadesPorLocal: produto.quantidadesPorLocal),
+                const SizedBox(height: 24),
                 _ProductInfoGrid(produto: produto),
                 const SizedBox(height: 24),
                 Text(
@@ -252,6 +255,77 @@ class _MovimentacoesList extends StatelessWidget {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class _StockDistributionCard extends ConsumerWidget {
+  final Map<String, int> quantidadesPorLocal;
+  const _StockDistributionCard({required this.quantidadesPorLocal});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (quantidadesPorLocal.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text('Sem estoque registrado'),
+        ),
+      );
+    }
+
+    final tiles = quantidadesPorLocal.entries.map((e) {
+      final locId = e.key;
+      final qtd = e.value;
+      final nomeLocal = ref.watch(locationByIdProvider(locId))?.nome ?? 'ID: $locId';
+      return ListTile(
+        leading: const Icon(Icons.location_on_outlined),
+        title: Text(
+          nomeLocal,
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        trailing: Text('$qtd un.', style: Theme.of(context).textTheme.bodyLarge),
+        dense: true,
+      );
+    }).toList();
+
+    final total = quantidadesPorLocal.values.fold<int>(0, (p, c) => p + c);
+
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Estoque por Localização',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    'Total: $total',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ...tiles,
+          const SizedBox(height: 8),
+        ],
       ),
     );
   }

@@ -41,7 +41,7 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
   }
 
   Future<void> updateStock(String productId, int quantidade, String responsavel) async {
-     try {
+  try {
       final produto = await _repository.getProdutoById(productId);
       final diferenca = quantidade - produto.quantidade;
 
@@ -65,8 +65,8 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
 
       await _repository.updateProduto(produtoAtualizado);
       await loadProdutos();
-    } catch (e, st) {
-      // Tratar erro
+    } catch (e) {
+      // Tratar erro futuramente
     }
   }
 
@@ -77,7 +77,7 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
     required int novaQuantidadeLocal,
     required String responsavel,
   }) async {
-    try {
+  try {
       final produto = await _repository.getProdutoById(productId);
       final mapa = Map<String, int>.from(produto.quantidadesPorLocal);
       final quantidadeAnteriorLocal = mapa[locationId] ?? 0;
@@ -103,7 +103,7 @@ class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
       await _repository.updateProduto(produtoAtualizado);
       await loadProdutos();
     } catch (_) {
-      // TODO: log / error handling
+      // TODO: error handling
     }
   }
 }

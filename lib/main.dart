@@ -3,8 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+// (Diagnostics removidos após estabilização)
+
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  FlutterError.onError = FlutterError.dumpErrorToConsole;
+
   runApp(const ProviderScope(child: MyApp()));
+
+  // Heartbeat removido
 }
 
 class MyApp extends ConsumerWidget {

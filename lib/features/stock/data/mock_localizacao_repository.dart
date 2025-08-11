@@ -13,7 +13,7 @@ class MockLocalizacaoRepository implements ILocalizacaoRepository {
 
   @override
   Future<List<Localizacao>> getLocations() async {
-    await Future.delayed(const Duration(milliseconds: 150));
+  await Future.delayed(const Duration(milliseconds: 150));
     return List.unmodifiable(_localizacoes);
   }
 

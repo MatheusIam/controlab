@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:controlab/features/auth/application/auth_notifier.dart';
-import 'package:controlab/features/auth/domain/user.dart';
 import 'package:controlab/features/auth/ui/screens/login_screen.dart';
 import 'package:controlab/features/stock/ui/screens/add_product_screen.dart'; // Importa a nova tela
 import 'package:controlab/features/stock/ui/screens/home_screen.dart';
@@ -30,6 +29,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/login',
     refreshListenable: refreshListenable,
     navigatorKey: _rootNavigatorKey,
+  // Observers removidos após diagnóstico
     routes: [
       GoRoute(
         path: '/login',
@@ -62,7 +62,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'product-form',
                     name: AppRoute.productForm.name,
-                    parentNavigatorKey: _rootNavigatorKey,
                     builder: (context, state) {
                       // Passa o produto existente como extra para edição
                       final produto = state.extra as Produto?;
@@ -126,3 +125,4 @@ class GoRouterRefreshStream extends ChangeNotifier {
     super.dispose();
   }
 }
+

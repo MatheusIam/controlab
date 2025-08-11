@@ -7,7 +7,8 @@ final localizacaoRepositoryProvider = Provider<ILocalizacaoRepository>((ref) {
   return MockLocalizacaoRepository();
 });
 
-final locationsListProvider = FutureProvider.autoDispose<List<Localizacao>>((ref) {
+final locationsListProvider = FutureProvider<List<Localizacao>>((ref) {
+  ref.keepAlive();
   final repo = ref.watch(localizacaoRepositoryProvider);
   return repo.getLocations();
 });

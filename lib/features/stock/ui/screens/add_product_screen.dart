@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:controlab/features/stock/application/stock_notifier.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
+import 'package:controlab/features/stock/domain/localizacao.dart';
+import 'package:controlab/features/stock/application/localizacao_providers.dart';
 
 class AddProductScreen extends ConsumerStatefulWidget {
   final Produto? produto; // Produto existente para edição (pode ser nulo)
@@ -24,13 +26,15 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   
   CategoriaProduto _selectedCategoria = CategoriaProduto.consumiveis;
   IconData _selectedIcon = CategoriaProduto.consumiveis.icon;
+  Localizacao? _selectedLocation; // localização inicial selecionada (somente criação)
   bool get _isEditing => widget.produto != null;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.produto?.nome ?? '');
-    _quantityController = TextEditingController(text: widget.produto?.quantidade.toString() ?? '');
+  // Durante edição ainda usamos getter legado quantidade (total); criação usará mapa por local
+  _quantityController = TextEditingController(text: widget.produto?.quantidade.toString() ?? '');
     _supplierController = TextEditingController(text: widget.produto?.fornecedor ?? '');
     _lotController = TextEditingController(text: widget.produto?.lote ?? '');
     _expiryDateController = TextEditingController(text: widget.produto?.validade ?? '');
@@ -71,10 +75,18 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
 
   void _submitForm() {
     if (_formKey.currentState!.validate()) {
+      if (!_isEditing && _selectedLocation == null) {
+        // Segurança extra caso usuário clique antes de carregar/selecionar localização
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Selecione a Localização Inicial antes de continuar.')),
+        );
+        return;
+      }
       final notifier = ref.read(stockNotifierProvider.notifier);
       if (_isEditing) {
         final updatedProduct = widget.produto!.copyWith(
           nome: _nameController.text,
+          // TODO: futura edição granular por local; por enquanto mantém quantidade total legado.
           quantidade: int.parse(_quantityController.text),
           fornecedor: _supplierController.text,
           lote: _lotController.text,
@@ -86,10 +98,11 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         );
         notifier.updateProduct(updatedProduct);
       } else {
+        final quantidadeInicial = int.parse(_quantityController.text);
         final newProduct = Produto(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           nome: _nameController.text,
-          quantidade: int.parse(_quantityController.text),
+          quantidadesPorLocal: { _selectedLocation!.id : quantidadeInicial },
           fornecedor: _supplierController.text,
           validade: _expiryDateController.text,
           lote: _lotController.text,
@@ -124,20 +137,67 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                     value!.isEmpty ? 'Campo obrigatório' : null,
               ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _quantityController,
-                decoration: const InputDecoration(labelText: 'Quantidade'),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Campo obrigatório';
-                  }
-                  if (int.tryParse(value) == null) {
-                    return 'Por favor, insira um número válido.';
-                  }
-                  return null;
-                },
-              ),
+              // Seleção de Localização inicial apenas no fluxo de criação
+              if (!_isEditing) ...[
+                Consumer(
+                  builder: (context, ref, _) {
+                    final locationsAsync = ref.watch(locationsListProvider);
+                    return locationsAsync.when(
+                      loading: () => const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8.0),
+                        child: LinearProgressIndicator(),
+                      ),
+                      error: (err, stack) => Text('Erro ao carregar localizações: $err'),
+                      data: (locations) {
+                        if (_selectedLocation != null && !locations.any((l) => l.id == _selectedLocation!.id)) {
+                          _selectedLocation = null; // localização removida
+                        }
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            DropdownButtonFormField<Localizacao>(
+                              value: _selectedLocation,
+                              decoration: const InputDecoration(labelText: 'Localização Inicial'),
+                              hint: const Text('Selecione um local'),
+                              items: locations.map((loc) => DropdownMenuItem(value: loc, child: Text(loc.nome))).toList(),
+                              onChanged: (value) {
+                                setState(() { _selectedLocation = value; });
+                              },
+                              validator: (value) => value == null ? 'Campo obrigatório' : null,
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _quantityController,
+                              decoration: const InputDecoration(labelText: 'Quantidade nesse Local'),
+                              keyboardType: TextInputType.number,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) return 'Campo obrigatório';
+                                final parsed = int.tryParse(value);
+                                if (parsed == null || parsed <= 0) return 'Insira um número válido (>0).';
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
+              ] else ...[
+                // Fluxo de edição mantém campo de quantidade total legado (até refatoração futura)
+                TextFormField(
+                  controller: _quantityController,
+                  decoration: const InputDecoration(labelText: 'Quantidade (Total)'),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Campo obrigatório';
+                    if (int.tryParse(value) == null) return 'Por favor, insira um número válido.';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
               const SizedBox(height: 16),
               TextFormField(
                 controller: _minStockController,
@@ -216,9 +276,16 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                 },
               ),
               const SizedBox(height: 32),
-              FilledButton(
-                onPressed: _submitForm,
-                child: Text(_isEditing ? 'Salvar Alterações' : 'Adicionar Produto'),
+              Consumer(
+                builder: (context, ref, _) {
+                  final locationsAsync = ref.watch(locationsListProvider);
+                  final isCreating = !_isEditing;
+                  final locationReady = !isCreating || (locationsAsync is AsyncData && _selectedLocation != null);
+                  return FilledButton(
+                    onPressed: locationReady ? _submitForm : null,
+                    child: Text(_isEditing ? 'Salvar Alterações' : 'Adicionar Produto'),
+                  );
+                },
               ),
             ],
           ),
