@@ -13,45 +13,45 @@ class ProductDetailsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // O provider agora retorna um AsyncValue<Produto> não nulo.
-    final productAsync = ref.watch(productDetailsProvider(productId));
+  final stockState = ref.watch(stockNotifierProvider);
+  final produto = ref.watch(productByIdProvider(productId));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Detalhes do Produto')),
       // A chamada a .when() agora é segura.
-      body: productAsync.when(
+      body: stockState.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(child: Text('Erro: ${err.toString()}')),
-        data: (produto) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _ProductHeader(produto: produto),
-                const SizedBox(height: 24),
-                // Exibe distribuição por localização em vez de quantidade total única
-                _StockDistributionCard(quantidadesPorLocal: produto.quantidadesPorLocal),
-                const SizedBox(height: 24),
-                _ProductInfoGrid(produto: produto),
-                const SizedBox(height: 24),
-                Text(
-                  'Movimentações Recentes',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+        data: (_) {
+          if (produto == null) {
+            return const Center(child: Text('Produto não encontrado.'));
+          }
+          return CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.all(16.0),
+                sliver: SliverList.list(
+                  children: [
+                    _ProductHeader(produto: produto),
+                    const SizedBox(height: 24),
+                    _StockDistributionCard(quantidadesPorLocal: produto.quantidadesPorLocal),
+                    const SizedBox(height: 24),
+                    _ProductInfoGrid(produto: produto),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Movimentações Recentes',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 16),
+                    _MovimentacoesList(movimentacoes: produto.historicoUso),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                _MovimentacoesList(movimentacoes: produto.historicoUso),
-              ],
-            ),
+              ),
+            ],
           );
         },
       ),
-      floatingActionButton: productAsync.maybeWhen(
-        data: (produto) => _TransferFab(produto: produto),
-        orElse: () => null,
-      ),
+      floatingActionButton: produto == null ? null : _TransferFab(produto: produto),
     );
   }
 }

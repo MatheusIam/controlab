@@ -51,3 +51,21 @@ final productDetailsProviderOptimized = Provider.autoDispose
     ),
   );
 });
+
+/// Provider simplificado que retorna diretamente (sincrono) o produto ou null.
+/// Usa select para minimizar rebuilds e evita embrulhar em AsyncValue adicional.
+final productByIdProvider = Provider.autoDispose.family<Produto?, String>((ref, id) {
+  return ref.watch(
+    stockNotifierProvider.select(
+      (asyncList) {
+        final produtos = asyncList.value;
+        if (produtos == null) return null;
+        try {
+          return produtos.firstWhere((p) => p.id == id);
+        } catch (_) {
+          return null;
+        }
+      },
+    ),
+  );
+});

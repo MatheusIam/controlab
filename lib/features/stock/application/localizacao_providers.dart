@@ -1,11 +1,12 @@
-import 'package:controlab/features/stock/data/mock_localizacao_repository.dart';
-import 'package:controlab/features/stock/domain/i_localizacao_repository.dart';
+import 'package:controlab/features/stock/data/localizacao_repository_impl.dart';
 import 'package:controlab/features/stock/domain/localizacao.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-final localizacaoRepositoryProvider = Provider<ILocalizacaoRepository>((ref) {
-  return MockLocalizacaoRepository();
-});
+// Reexporta o provider do repositório para que a UI não precise importar diretamente a camada de dados.
+export 'package:controlab/features/stock/data/localizacao_repository_impl.dart' show localizacaoRepositoryProvider;
+
+// O provider do repositório agora vem da implementação concreta baseada em data source.
+// Mantemos a mesma assinatura pública para não quebrar a UI existente.
 
 final locationsListProvider = FutureProvider<List<Localizacao>>((ref) {
   ref.keepAlive();

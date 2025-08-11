@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:controlab/features/stock/domain/i_stock_repository.dart';
 import 'package:controlab/features/stock/domain/produto.dart';
-import 'package:controlab/features/stock/data/mock_stock_repository.dart';
+import 'package:controlab/features/stock/data/stock_repository_impl.dart';
 
 class StockNotifier extends StateNotifier<AsyncValue<List<Produto>>> {
   final IStockRepository _repository;
